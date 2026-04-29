@@ -1,0 +1,107 @@
+{% extends "admin/base.html" %}
+{% import "admin/partials/ui_macros.html" as ui %}
+
+{% block title %}Пользователи - Админка QR Menu{% endblock %}
+{% block page_title %}Пользователи{% endblock %}
+
+{% block header_actions %}
+<button type="button" data-modal-template="userCreateTemplate" data-modal-title="Добавить пользователя" class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+    {{ ui.icon("user-plus") }}
+    <span>Добавить пользователя</span>
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <h2 class="text-2xl font-bold tracking-tight">Управление пользователями</h2>
+        <p class="mt-1 text-sm text-slate-500">Создание разработчиков и админов ресторанов из одного раздела.</p>
+    </div>
+    <button type="button" data-modal-template="userCreateTemplate" data-modal-title="Добавить пользователя" class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white sm:hidden">
+        {{ ui.icon("user-plus") }}
+        <span>Добавить пользователя</span>
+    </button>
+</div>
+
+<section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <div class="overflow-x-auto">
+        <table class="js-data-table min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+                <tr data-empty-row>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Пользователь</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Роль</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Рестораны</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Статус</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Действия</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for user in users %}
+                <tr>
+                    <td class="px-4 py-3">
+                        <div class="font-semibold">{{ user.name }}</div>
+                        <div class="text-sm text-slate-500">{{ user.email }}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{{ "Разработчик" if user.global_role == "developer" else "Админ ресторана" }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-slate-600">{{ user.restaurants or "-" }}</td>
+                    <td class="px-4 py-3">
+                        {% if user.is_active %}
+                        <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">Активен</span>
+                        {% else %}
+                        <span class="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">Выключен</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex justify-end gap-2">
+                            <button type="button" data-modal-template="userEditTemplate{{ user.id }}" data-modal-title="Редактировать пользователя" class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50">
+                                {{ ui.icon("edit", "h-3.5 w-3.5") }}
+                                <span>Изм.</span>
+                            </button>
+                            {% if current_user and current_user.id != user.id %}
+                            <button type="button" data-delete-action="{{ url_for('admin.delete_user', user_id=user.id) }}" data-modal-title="Удалить пользователя" data-delete-message="Удалить пользователя {{ user.email }}?" class="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50">
+                                {{ ui.icon("trash", "h-3.5 w-3.5") }}
+                                <span>Удалить</span>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-4 py-12 text-center text-sm text-slate-500">Пользователей пока нет.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<template id="userCreateTemplate">
+    <form method="POST" action="{{ url_for('admin.add_user') }}" class="space-y-5">
+        {% include "admin/partials/user_form_fields.html" %}
+        <div class="flex justify-end gap-2">
+            <button type="button" data-modal-close class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Отмена</button>
+            <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Создать</button>
+        </div>
+    </form>
+</template>
+
+{% for user in users %}
+<template id="userEditTemplate{{ user.id }}">
+    <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}" class="space-y-5">
+        {% set user_form = user %}
+        {% include "admin/partials/user_form_fields.html" %}
+        <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}>
+            <span class="text-sm text-slate-700">Активен</span>
+        </label>
+        <div class="flex justify-end gap-2">
+            <button type="button" data-modal-close class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Отмена</button>
+            <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Сохранить</button>
+        </div>
+    </form>
+</template>
+{% endfor %}
+{% endblock %}

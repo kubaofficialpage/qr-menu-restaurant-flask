@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ restaurant.name }} - временно недоступно</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+    <main class="min-h-screen px-5 py-10 flex items-center justify-center">
+        <section class="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_0.9fr]">
+                <div>
+                    <div class="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
+                        Технические работы
+                    </div>
+                    <h1 class="mt-5 text-3xl font-bold tracking-tight sm:text-5xl">
+                        {{ restaurant.name }} временно недоступен
+                    </h1>
+                    <p class="mt-4 max-w-xl text-base leading-7 text-slate-600">
+                        Меню ресторана сейчас отключено или находится на технической настройке.
+                        Пожалуйста, попробуйте открыть страницу позже.
+                    </p>
+                    <div class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        Если вы владелец ресторана, войдите в админку и проверьте статус ресторана.
+                    </div>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <a href="/" class="rounded-md bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800">
+                            На главную
+                        </a>
+                        <a href="/admin" class="rounded-md border border-slate-200 px-5 py-3 text-sm font-semibold hover:bg-slate-50">
+                            Админка
+                        </a>
+                    </div>
+                </div>
+                <div class="rounded-xl bg-sky-50 p-4">
+                    <img src="/static/resource/img/restaurant-unavailable.jpg" alt="Техническая поддержка" class="w-full rounded-lg object-cover">
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

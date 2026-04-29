@@ -1,0 +1,145 @@
+<div class="space-y-4">
+<section class="rounded-lg border border-slate-200 bg-white p-4">
+    <h3 class="font-semibold text-slate-900">Основное</h3>
+    <div class="mt-4 grid gap-4 lg:grid-cols-[180px_1fr]">
+    <label data-image-upload-dropzone class="block cursor-pointer rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition hover:border-blue-300 hover:bg-blue-50">
+        <input name="logo" type="file" accept="image/*" class="sr-only" data-image-upload-input>
+        <div class="space-y-3">
+            <div class="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white">
+                {% if restaurant_form is defined and restaurant_form.logo %}
+                <img src="/static/resource/{{ restaurant_form.logo }}" alt="{{ restaurant_form.name }}" class="h-full w-full object-cover" data-image-upload-preview>
+                {% else %}
+                <img src="" alt="" class="hidden h-full w-full object-cover" data-image-upload-preview>
+                <svg data-image-upload-placeholder class="h-9 w-9 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M3 21h18"></path>
+                    <path d="M5 21V7l8-4 6 4v14"></path>
+                    <path d="M9 21v-8h6v8"></path>
+                </svg>
+                {% endif %}
+            </div>
+            <div class="min-w-0">
+                <div class="text-sm font-semibold text-slate-800">Логотип</div>
+                <div data-image-upload-filename class="mt-1 truncate text-xs font-medium text-blue-600">
+                    {% if restaurant_form is defined and restaurant_form.logo %}Текущий логотип{% else %}Файл не выбран{% endif %}
+                </div>
+                <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                    <div data-image-upload-progress class="h-full w-0 rounded-full bg-blue-600 transition-all duration-500"></div>
+                </div>
+                <div data-image-upload-status class="mt-1 text-xs text-slate-500">Ожидает выбора файла</div>
+            </div>
+        </div>
+    </label>
+
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="sm:col-span-2">
+        <label class="block text-sm font-medium text-slate-700">Название</label>
+        <input name="name" value="{{ restaurant_form.name if restaurant_form is defined else '' }}" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Slug</label>
+        <div class="relative mt-1">
+            <input name="slug" value="{{ restaurant_form.slug if restaurant_form is defined else '' }}" required placeholder="restaurant-name" data-slug-input data-slug-check-url="{{ url_for('admin.check_restaurant_slug') }}" data-slug-current-id="{{ restaurant_form.id if restaurant_form is defined and restaurant_form.id else '' }}" class="w-full rounded-md border border-slate-300 px-3 py-2 pr-10">
+            <span data-slug-spinner class="pointer-events-none absolute right-3 top-1/2 hidden h-4 w-4 -translate-y-1/2 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin"></span>
+            <svg data-slug-check class="pointer-events-none absolute right-3 top-1/2 hidden h-5 w-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+        </div>
+        <div data-slug-status class="mt-1 hidden text-xs"></div>
+        <div class="mt-1 text-xs text-slate-500">
+            Публичная ссылка:
+            <a href="/{{ restaurant_form.slug if restaurant_form is defined and restaurant_form.slug else 'restaurant-name' }}" data-slug-public-link class="font-medium text-blue-600 hover:text-blue-800">/{{ restaurant_form.slug if restaurant_form is defined and restaurant_form.slug else 'restaurant-name' }}</a>
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Телефон</label>
+        <input name="phone" value="{{ restaurant_form.phone if restaurant_form is defined else '' }}" data-phone-mask placeholder="+996 778 05 01 05" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Почта ресторана</label>
+        <input name="email" type="email" value="{{ restaurant_form.email if restaurant_form is defined else '' }}" placeholder="name@gmail.com" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Дата открытия</label>
+        <input name="opening_date" type="date" value="{{ restaurant_form.opening_date if restaurant_form is defined and restaurant_form.opening_date else '' }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Адрес</label>
+        <input name="address" value="{{ restaurant_form.address if restaurant_form is defined else '' }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
+    <div class="sm:col-span-2">
+        <label class="block text-sm font-medium text-slate-700">Описание</label>
+        <textarea name="description" rows="2" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">{{ restaurant_form.description if restaurant_form is defined else '' }}</textarea>
+    </div>
+
+    <div class="sm:col-span-2">
+        <label class="block text-sm font-medium text-slate-700">Классическая информация</label>
+        <textarea name="classic_info" rows="2" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">{{ restaurant_form.classic_info if restaurant_form is defined else '' }}</textarea>
+    </div>
+    </div>
+    </div>
+</section>
+
+<section class="rounded-lg border border-slate-200 bg-white p-4">
+    <h3 class="font-semibold text-slate-900">Контакты</h3>
+    <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Контакт администрации</label>
+        <input name="admin_contact" value="{{ restaurant_form.admin_contact if restaurant_form is defined else '' }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Контакт директора</label>
+        <input name="director_contact" value="{{ restaurant_form.director_contact if restaurant_form is defined else '' }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Телефон поддержки</label>
+        <input name="support_phone" value="{{ restaurant_form.support_phone if restaurant_form is defined else '' }}" data-phone-mask placeholder="+996 778 05 01 05" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Почта поддержки</label>
+        <input name="support_email" type="email" value="{{ restaurant_form.support_email if restaurant_form is defined else '' }}" placeholder="support@gmail.com" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+    </div>
+</section>
+
+<section class="rounded-lg border border-slate-200 bg-white p-4">
+    <h3 class="font-semibold text-slate-900">График и карта</h3>
+    <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
+    <div>
+        <label class="block text-sm font-medium text-slate-700">График работы</label>
+        <textarea name="work_hours" rows="2" class="hidden" data-work-hours-value="true">{{ restaurant_form.work_hours if restaurant_form is defined else '' }}</textarea>
+        <div data-work-schedule class="mt-1 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {% set schedule_days = [('Пн', 'monday'), ('Вт', 'tuesday'), ('Ср', 'wednesday'), ('Чт', 'thursday'), ('Пт', 'friday'), ('Сб', 'saturday'), ('Вс', 'sunday')] %}
+            {% for day_label, day_id in schedule_days %}
+            <div class="rounded-md border border-slate-200 p-2">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                    <span class="text-sm font-semibold text-slate-700">{{ day_label }}</span>
+                    <label class="inline-flex items-center gap-1 text-xs text-slate-600">
+                        <input type="checkbox" data-work-closed {% if day_id in ['saturday', 'sunday'] %}checked{% endif %}>
+                        выходной
+                    </label>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="time" data-work-open value="09:00" class="min-w-0 rounded-md border border-slate-300 px-2 py-1 text-sm">
+                    <input type="time" data-work-close value="22:00" class="min-w-0 rounded-md border border-slate-300 px-2 py-1 text-sm">
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Ссылка 2ГИС</label>
+        <input name="map_2gis_url" type="url" value="{{ restaurant_form.map_2gis_url if restaurant_form is defined else '' }}" placeholder="https://2gis.kz/..." class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+    </div>
+</section>
+</div>

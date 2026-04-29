@@ -1,0 +1,39 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ restaurant.name }} - Админка QR Menu{% endblock %}
+{% block page_title %}Редактировать ресторан{% endblock %}
+
+{% block content %}
+<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <h2 class="text-2xl font-bold tracking-tight">{{ restaurant.name }}</h2>
+        <p class="mt-1 text-sm text-slate-500">Профиль ресторана, контакты, логотип и карта.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+        <label class="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
+            <input type="checkbox" name="is_active" form="restaurantEditForm" {% if restaurant.is_active %}checked{% endif %}>
+            <span class="text-sm font-medium text-slate-700">Активен</span>
+        </label>
+        <a href="{{ url_for('admin.restaurants') }}" class="inline-flex justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50">Назад к ресторанам</a>
+    </div>
+</div>
+
+<form id="restaurantEditForm" method="POST" action="{{ url_for('admin.edit_restaurant', restaurant_id=restaurant.id) }}" enctype="multipart/form-data" class="space-y-4">
+    {% set restaurant_form = restaurant %}
+    {% include "admin/partials/restaurant_form_fields.html" %}
+
+    {% if restaurant.map_2gis_embed_url %}
+    <section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 p-4">
+            <h3 class="font-semibold">Предпросмотр 2ГИС</h3>
+        </div>
+        <iframe src="{{ restaurant.map_2gis_embed_url }}" class="h-80 w-full" loading="lazy"></iframe>
+    </section>
+    {% endif %}
+
+    <div class="sticky bottom-0 flex justify-end gap-2 border-t border-slate-200 bg-slate-100/95 py-4 backdrop-blur">
+        <a href="{{ url_for('admin.restaurants') }}" class="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50">Отмена</a>
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Сохранить</button>
+    </div>
+</form>
+{% endblock %}

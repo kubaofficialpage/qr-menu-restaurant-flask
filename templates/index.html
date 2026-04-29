@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=0.8, maximum-scale=0.8, user-scalable=no">
+<title>qrmenu Кыргызстан</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+
+<body class="bg-gray-100 p-4">
+<div class="max-w-7xl mx-auto">
+    <div class="flex gap-2 mb-4">
+        <div class="relative flex-1">
+            <input
+                id="search"
+                name="search"
+                type="search"
+                autocomplete="off"
+                inputmode="search"
+                placeholder="Поиск блюд..."
+                aria-label="Поиск блюд"
+                data-i18n-placeholder="search_placeholder"
+                data-i18n-aria-label="search_aria"
+                aria-controls="searchDropdown"
+                class="w-full p-3 rounded-xl border"
+            >
+
+            <div
+                id="searchDropdown"
+                class="hidden absolute left-0 right-0 top-full mt-2 bg-white border rounded-xl shadow-lg overflow-hidden z-30"
+                role="listbox"
+                aria-label="Результаты поиска">
+            </div>
+        </div>
+
+        <div id="langSwitcher" class="relative">
+            <button
+                id="langSwitcherBtn"
+                type="button"
+                class="bg-white border rounded-xl px-3 h-full flex items-center justify-center"
+                aria-label="Language"
+                aria-haspopup="true"
+                aria-expanded="false">
+                RU
+            </button>
+            <div id="langSwitcherMenu" class="hidden absolute right-0 top-full mt-2 bg-white border rounded-xl shadow-lg overflow-hidden z-30">
+                <a href="#" data-lang="ru" class="block px-4 py-2 hover:bg-gray-50">RU</a>
+                <a href="#" data-lang="en" class="block px-4 py-2 hover:bg-gray-50">EN</a>
+                <a href="#" data-lang="ky" class="block px-4 py-2 hover:bg-gray-50">KY</a>
+            </div>
+        </div>
+
+        <a href="{% if restaurant %}/{{ restaurant.slug }}/cart{% else %}/cart{% endif %}" class="relative bg-white border rounded-xl px-4 flex items-center" aria-label="Открыть корзину" data-i18n-aria-label="cart_open_aria">
+            <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
+            <span
+                id="cartCount"
+                class="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full"
+                aria-live="polite">
+                0
+            </span>
+        </a>
+    </div>
+
+    <nav id="categories" class="flex gap-2 overflow-x-auto pb-2" aria-label="Категории меню"></nav>
+
+    <h1 id="catTitle" class="text-2xl font-bold mb-3 mt-4" data-i18n="all_dishes">Все блюда</h1>
+
+    <div
+        id="menu"
+        class="grid gap-4 grid-cols-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-6"
+        aria-live="polite">
+    </div>
+
+    <footer class="text-center text-gray-500 mt-8">
+        Платформа создано .
+        <a href="https://instagram.com/qrmenu_kyrgyzstan" class="text-blue-500 hover:underline">qrmenu Кыргызстан</a>
+    </footer>
+</div>
+
+<button
+    id="restaurantInfoBtn"
+    type="button"
+    data-action="openRestaurantInfo"
+    class="fixed bottom-5 right-5 z-40 h-12 w-12 rounded-full bg-white border shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition"
+    aria-label="Информация о ресторане"
+    data-i18n-aria-label="restaurant_info_btn_aria">
+    <i class="fa-solid fa-circle-info text-gray-800 text-xl" aria-hidden="true"></i>
+</button>
+
+<div
+    id="restaurantInfoModal"
+    class="hidden fixed inset-0 z-50 bg-black/50 p-4 items-center justify-center"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="restaurantInfoTitle">
+    <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4 border-b">
+            <h2 id="restaurantInfoTitle" class="text-lg font-bold" data-i18n="restaurant_info_title">Информация о ресторане</h2>
+            <button
+                type="button"
+                data-action="closeRestaurantInfo"
+                class="h-10 w-10 rounded-full hover:bg-gray-100 flex items-center justify-center"
+                aria-label="Закрыть"
+                data-i18n-aria-label="close">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="p-5">
+            <div class="flex items-center gap-4">
+                <div class="h-16 w-16 rounded-2xl bg-gray-50 border overflow-hidden flex items-center justify-center">
+                    {% if restaurant and restaurant.logo %}
+                        <img src="/static/resource/{{ restaurant.logo }}" alt="{{ restaurant.name }}" class="h-full w-full object-cover" loading="lazy" decoding="async">
+                    {% else %}
+                        <i class="fa-solid fa-utensils text-gray-400 text-2xl" aria-hidden="true"></i>
+                    {% endif %}
+                </div>
+                <div class="min-w-0">
+                    <div class="text-base font-semibold text-gray-900 truncate">
+                        {% if restaurant %}{{ restaurant.name }}{% else %}Restaurant{% endif %}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        {% if restaurant and restaurant.address %}{{ restaurant.address }}{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 space-y-3">
+                <div class="rounded-xl border bg-gray-50 px-4 py-3">
+                    <div class="text-xs font-semibold text-gray-500" data-i18n="restaurant_info_contacts">Контакты</div>
+                    <div class="mt-2 space-y-2 text-sm">
+                        {% if restaurant and restaurant.phone %}
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-phone text-gray-400" aria-hidden="true"></i>
+                                <a class="text-gray-900 hover:underline" href="tel:{{ restaurant.phone }}">{{ restaurant.phone }}</a>
+                            </div>
+                        {% endif %}
+                        {% if restaurant and restaurant.email %}
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-envelope text-gray-400" aria-hidden="true"></i>
+                                <a class="text-gray-900 hover:underline" href="mailto:{{ restaurant.email }}">{{ restaurant.email }}</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if restaurant and restaurant.description %}
+                    <div class="rounded-xl border px-4 py-3">
+                        <div class="text-xs font-semibold text-gray-500" data-i18n="restaurant_info_about">О ресторане</div>
+                        <div class="mt-2 text-sm text-gray-800 whitespace-pre-line">{{ restaurant.description }}</div>
+                    </div>
+                {% endif %}
+
+                {% if restaurant and restaurant.map_2gis_url %}
+                    <a
+                        class="block rounded-xl border px-4 py-3 hover:bg-gray-50"
+                        href="{{ restaurant.map_2gis_url }}"
+                        target="_blank"
+                        rel="noopener noreferrer">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="text-sm font-semibold text-gray-900" data-i18n="restaurant_info_map">Открыть на карте</div>
+                                <div class="text-xs text-gray-500 truncate">2GIS</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-gray-400" aria-hidden="true"></i>
+                        </div>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div
+    id="itemModal"
+    data-action="bgClose"
+    class="hidden modal-overlay fixed inset-0 bg-black/40 flex items-end"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="itemModalTitle">
+    <div id="modalSheet" class="modal-content bg-white w-full rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto transition-all">
+        <div id="dragHandle" class="w-10 h-1 bg-gray-300 rounded mx-auto mb-3" aria-hidden="true"></div>
+        <div id="itemModalContent"></div>
+    </div>
+</div>
+
+<script>
+    window.RESTAURANT_SLUG = {% if restaurant %}{{ restaurant.slug|tojson }}{% else %}null{% endif %};
+</script>
+<script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

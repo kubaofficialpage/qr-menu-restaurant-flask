@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Главная - Админка QR Menu{% endblock %}
+{% block page_title %}Главная{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold tracking-tight">Обзор</h2>
+    <p class="mt-1 text-sm text-slate-500">Быстрый доступ к управлению ресторанами и меню.</p>
+</div>
+
+<div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <section class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="text-sm font-medium text-slate-500">Текущий ресторан</div>
+        <div class="mt-2 text-2xl font-bold">{{ current_restaurant.name if current_restaurant else "Не выбран" }}</div>
+        {% if current_restaurant %}
+        <a href="/{{ current_restaurant.slug }}" class="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800">Открыть публичное меню</a>
+        {% endif %}
+    </section>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="text-sm font-medium text-slate-500">Доступные рестораны</div>
+        <div class="mt-2 text-2xl font-bold">{{ restaurants|length }}</div>
+        <button type="button" data-modal-template="restaurantSelectTemplate" data-modal-title="Выберите ресторан" class="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M3 10h18"></path>
+                <path d="M5 10v10h14V10"></path>
+                <path d="M7 10V6a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Выбрать ресторан</span>
+        </button>
+    </section>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="text-sm font-medium text-slate-500">Роль</div>
+        <div class="mt-2 text-2xl font-bold">{{ "Разработчик" if current_user and current_user.global_role == "developer" else "Админ ресторана" }}</div>
+        <p class="mt-2 text-sm text-slate-500">Доступ зависит от роли пользователя и привязки к ресторану.</p>
+    </section>
+</div>
+
+<section class="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <div class="border-b border-slate-200 p-4">
+        <h3 class="font-semibold">Доступные рестораны</h3>
+        <p class="text-sm text-slate-500">Выберите ресторан перед управлением меню.</p>
+    </div>
+    <div class="divide-y divide-slate-200">
+        {% for restaurant in restaurants %}
+        <div class="flex items-center justify-between gap-4 p-4">
+            <div>
+                <div class="font-semibold">{{ restaurant.name }}</div>
+                <a href="/{{ restaurant.slug }}" class="text-sm text-slate-500 hover:text-blue-600">/{{ restaurant.slug }}</a>
+            </div>
+            <a href="{{ url_for('admin.select_restaurant', restaurant_id=restaurant.id) }}" class="rounded-md border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50">Выбрать</a>
+        </div>
+        {% else %}
+        <div class="p-6 text-sm text-slate-500">Нет доступных ресторанов.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

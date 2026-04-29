@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+{% import "admin/partials/ui_macros.html" as ui %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Админка QR Menu{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.3.7/css/dataTables.dataTables.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: Montserrat, system-ui, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900">
+    <div class="min-h-screen">
+        <aside id="adminSidebar" class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full border-r border-slate-200 bg-white shadow-xl transition-transform lg:translate-x-0 lg:shadow-none">
+            <div class="flex h-16 items-center justify-between border-b border-slate-200 px-5">
+                <a href="{{ url_for('admin.dashboard') }}" class="flex items-center gap-3 font-bold tracking-tight">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-white">
+                        {{ ui.icon("qr", "h-5 w-5") }}
+                    </span>
+                    <span>QR Menu</span>
+                </a>
+                <button type="button" data-admin-close-sidebar class="rounded-md p-2 text-slate-500 hover:bg-slate-100 lg:hidden" aria-label="Закрыть меню">
+                    {{ ui.icon("close", "h-5 w-5") }}
+                </button>
+            </div>
+            <nav class="p-4 space-y-1">
+                <a href="{{ url_for('admin.dashboard') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-slate-100 {% if request.endpoint == 'admin.dashboard' %}bg-slate-900 text-white hover:bg-slate-900{% endif %}">
+                    {{ ui.icon("home", "h-4 w-4 shrink-0") }}
+                    <span>Главная</span>
+                </a>
+                <button type="button" data-modal-template="restaurantSelectTemplate" data-modal-title="Выберите ресторан" class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-slate-100 {% if request.endpoint == 'admin.menu' %}bg-slate-900 text-white hover:bg-slate-900{% endif %}">
+                    {{ ui.icon("store", "h-4 w-4 shrink-0") }}
+                    <span>Меню</span>
+                </button>
+                {% if is_developer %}
+                <a href="{{ url_for('admin.restaurants') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-slate-100 {% if request.endpoint == 'admin.restaurants' %}bg-slate-900 text-white hover:bg-slate-900{% endif %}">
+                    {{ ui.icon("store", "h-4 w-4 shrink-0") }}
+                    <span>Рестораны</span>
+                </a>
+                <a href="{{ url_for('admin.users') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-slate-100 {% if request.endpoint == 'admin.users' %}bg-slate-900 text-white hover:bg-slate-900{% endif %}">
+                    {{ ui.icon("users", "h-4 w-4 shrink-0") }}
+                    <span>Пользователи</span>
+                </a>
+                {% endif %}
+            </nav>
+            <div class="absolute bottom-0 left-0 right-0 border-t border-slate-200 p-4">
+                {% if current_user %}
+                <div class="text-sm font-semibold">{{ current_user.name }}</div>
+                <div class="truncate text-xs text-slate-500">{{ current_user.email }}</div>
+                {% endif %}
+                <form method="POST" action="{{ url_for('admin.logout') }}" class="mt-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="w-full flex items-center justify-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50">
+                        {{ ui.icon("logout") }}
+                        <span>Выйти</span>
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <div id="adminSidebarOverlay" data-admin-close-sidebar class="fixed inset-0 z-30 hidden bg-slate-900/40 lg:hidden"></div>
+
+        <div class="min-w-0 lg:pl-72">
+            <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+                <div class="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <button type="button" data-admin-open-sidebar class="rounded-md border border-slate-200 p-2 text-slate-700 hover:bg-slate-50 lg:hidden" aria-label="Открыть меню">
+                            {{ ui.icon("menu", "h-5 w-5") }}
+                        </button>
+                        <div class="min-w-0">
+                            <h1 class="truncate text-lg font-semibold">{% block page_title %}Главная{% endblock %}</h1>
+                            {% if current_restaurant %}
+                            <a href="/{{ current_restaurant.slug }}" class="text-xs text-slate-500 hover:text-blue-600">/{{ current_restaurant.slug }}</a>
+                            {% else %}
+                            <span class="text-xs text-slate-500">Ресторан не выбран</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="hidden items-center gap-2 sm:flex">
+                        {% block header_actions %}{% endblock %}
+                    </div>
+                </div>
+            </header>
+
+            <main class="px-4 py-6 sm:px-6 lg:px-8">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <div id="adminModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 p-4">
+        <div class="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <h2 id="adminModalTitle" class="text-lg font-semibold"></h2>
+                <button type="button" data-modal-close class="rounded-md p-2 text-slate-500 hover:bg-slate-100" aria-label="Закрыть окно">
+                    {{ ui.icon("close", "h-5 w-5") }}
+                </button>
+            </div>
+            <div id="adminModalBody" class="max-h-[78vh] overflow-y-auto p-5"></div>
+        </div>
+    </div>
+
+    <template id="restaurantSelectTemplate">
+        <div class="space-y-3" data-restaurant-picker>
+            <div class="relative">
+                <input type="search" data-restaurant-search placeholder="Поиск ресторана..." autocomplete="off" class="w-full rounded-md border border-slate-300 px-3 py-2 pl-10 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                <svg class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.3-4.3"></path>
+                </svg>
+            </div>
+            <div class="max-h-80 overflow-y-auto rounded-md border border-slate-200 bg-white" data-restaurant-options>
+            {% for restaurant in admin_restaurants %}
+            <a href="{{ url_for('admin.select_restaurant', restaurant_id=restaurant.id) }}" data-restaurant-option data-search-text="{{ restaurant.name }} {{ restaurant.slug }}" class="flex items-center gap-3 border-b border-slate-200 p-3 last:border-b-0 hover:bg-blue-50">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-900 text-white">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M3 10h18"></path>
+                        <path d="M5 10v10h14V10"></path>
+                        <path d="M7 10V6a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                </span>
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-semibold text-slate-900">{{ restaurant.name }}</span>
+                    <span class="block truncate text-xs text-slate-500">/{{ restaurant.slug }}</span>
+                </span>
+                <span class="text-sm font-medium text-blue-600">Редактировать</span>
+            </a>
+            {% else %}
+            <div class="rounded-md border border-slate-200 p-4 text-sm text-slate-500">Нет доступных ресторанов.</div>
+            {% endfor %}
+            </div>
+            <div data-restaurant-empty class="hidden rounded-md border border-slate-200 p-4 text-sm text-slate-500">Ничего не найдено.</div>
+        </div>
+    </template>
+
+    {% set flash_messages = get_flashed_messages(with_categories=true) %}
+    <script>
+        window.ADMIN_FLASH_MESSAGES = {{ flash_messages|tojson }};
+    </script>
+    <script src="https://cdn.datatables.net/2.3.7/js/dataTables.js"></script>
+    <script type="module" src="/static/js/admin.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

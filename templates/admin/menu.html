@@ -1,0 +1,327 @@
+{% extends "admin/base.html" %}
+{% import "admin/partials/ui_macros.html" as ui %}
+
+{% block title %}Меню - Админка QR Menu{% endblock %}
+{% block page_title %}Меню{% endblock %}
+
+{% block header_actions %}
+<button type="button" data-modal-template="menuItemCreateTemplate" data-modal-title="Добавить блюдо" class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+    {{ ui.icon("plus") }}
+    <span>Добавить блюдо</span>
+</button>
+<button type="button" data-modal-template="categoryCreateTemplate" data-modal-title="Добавить категорию" class="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50">
+    {{ ui.icon("list-plus") }}
+    <span>Добавить категорию</span>
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <h2 class="text-2xl font-bold tracking-tight">Управление меню</h2>
+        <p class="mt-1 text-sm text-slate-500">Блюда и категории выбранного ресторана.</p>
+    </div>
+    <div class="flex gap-2 sm:hidden">
+        <button type="button" data-modal-template="menuItemCreateTemplate" data-modal-title="Добавить блюдо" class="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white">
+            {{ ui.icon("plus") }}
+            <span>Блюдо</span>
+        </button>
+        <button type="button" data-modal-template="categoryCreateTemplate" data-modal-title="Добавить категорию" class="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium">
+            {{ ui.icon("list-plus") }}
+            <span>Категория</span>
+        </button>
+    </div>
+</div>
+
+<div class="grid gap-5 xl:grid-cols-[280px_1fr]">
+    <section class="rounded-lg border border-slate-200 bg-white">
+        <div class="flex items-center justify-between border-b border-slate-200 p-4">
+            <h3 class="font-semibold">Категории</h3>
+            <span class="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{{ categories|length }}</span>
+        </div>
+        <div class="space-y-2 p-3" data-category-list data-reorder-url="{{ url_for('admin.reorder_categories') }}">
+            <button type="button" data-action="adminFilterCat" data-param="all" data-category-name="Все блюда" class="w-full rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-left text-sm font-medium text-white">Все блюда</button>
+            {% for category in categories %}
+            <button type="button" draggable="true" data-category-sort-id="{{ category.id }}" data-action="adminFilterCat" data-param="{{ category.id }}" data-category-name="{{ category.name }}" class="flex w-full cursor-grab items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 active:cursor-grabbing">
+                <span class="text-slate-400" aria-hidden="true">⋮⋮</span>
+                <span class="min-w-0 flex-1 truncate">{{ category.name }}</span>
+            </button>
+            {% else %}
+            <p class="p-3 text-sm text-slate-500">Категорий пока нет.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 p-4">
+            <div class="min-w-0">
+                <h3 id="selectedCategoryTitle" class="truncate font-semibold">Все блюда</h3>
+                <p class="text-sm text-slate-500">Позиций: {{ menu_items|length }}</p>
+            </div>
+            <div id="selectedCategoryActions" class="relative hidden">
+                <button type="button" data-category-actions-toggle class="rounded-md border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label="Действия категории">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <circle cx="5" cy="12" r="2"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <circle cx="19" cy="12" r="2"></circle>
+                    </svg>
+                </button>
+                <div data-category-actions-menu class="absolute right-0 top-11 z-10 hidden w-44 overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
+                    {% for category in categories %}
+                    <div data-category-action-item="{{ category.id }}" class="hidden">
+                        <button type="button" data-modal-template="categoryEditTemplate{{ category.id }}" data-modal-title="Редактировать категорию" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                            {{ ui.icon("edit") }}
+                            <span>Изменить</span>
+                        </button>
+                        <button type="button" data-delete-action="{{ url_for('admin.delete_category', id=category.id) }}" data-modal-title="Удалить категорию" data-delete-message="Удалить категорию «{{ category.name }}»?" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50">
+                            {{ ui.icon("trash") }}
+                            <span>Удалить</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="js-data-table min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Блюдо</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Категория</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">On / Off</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Цена</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Действия</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for item in menu_items %}
+                    <tr class="menu-item-row {% if not item.is_available %}bg-slate-50{% endif %}" data-category-id="{{ item.category_id }}">
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-3">
+                                <img class="h-12 w-12 rounded-md object-cover" src="/static/resource/{{ item.image or 'img/default_food_png.png' }}" alt="{{ item.name }}">
+                                <div class="min-w-0">
+                                    <div class="truncate text-sm font-semibold">{{ item.name }}</div>
+                                    <div class="text-xs text-slate-500">{{ item.amount or "" }}</div>
+                                    {% if not item.is_available %}
+                                    <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Будет позже</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-slate-600">{{ item.category_name or "Без категории" }}</td>
+                        <td class="px-4 py-3">
+                            <form method="POST" action="{{ url_for('admin.toggle_menu_item_available', id=item.id) }}">
+                                <label class="inline-flex cursor-pointer items-center gap-2">
+                                    <input type="checkbox" name="is_available" class="peer sr-only" {% if item.is_available %}checked{% endif %} onchange="this.form.submit()">
+                                    <span class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-emerald-500 peer-checked:after:translate-x-5"></span>
+                                    <span class="text-xs font-medium text-slate-600">{{ "On" if item.is_available else "Off" }}</span>
+                                </label>
+                            </form>
+                        </td>
+                        <td class="px-4 py-3 text-sm font-semibold">{{ item.price }} c</td>
+                        <td class="px-4 py-3">
+                            <div class="flex justify-end gap-2">
+                                <button type="button" data-modal-template="menuItemEditTemplate{{ item.id }}" data-modal-title="Редактировать блюдо" class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50">
+                                    {{ ui.icon("edit", "h-3.5 w-3.5") }}
+                                    <span>Изм.</span>
+                                </button>
+                                <button type="button" data-delete-action="{{ url_for('admin.delete_menu_item', id=item.id) }}" data-modal-title="Удалить блюдо" data-delete-message="Удалить блюдо «{{ item.name }}»?" class="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50">
+                                    {{ ui.icon("trash", "h-3.5 w-3.5") }}
+                                    <span>Удалить</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr data-empty-row>
+                        <td colspan="5" class="px-4 py-12 text-center text-sm text-slate-500">Блюд пока нет.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<template id="categoryCreateTemplate">
+    <form method="POST" action="{{ url_for('admin.add_category') }}" class="space-y-5">
+        <div>
+            <label class="block text-sm font-medium text-slate-700">Название</label>
+            <input name="name" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+        </div>
+        <div class="flex justify-end gap-2">
+            <button type="button" data-modal-close class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Отмена</button>
+            <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Сохранить</button>
+        </div>
+    </form>
+</template>
+
+{% for category in categories %}
+<template id="categoryEditTemplate{{ category.id }}">
+    <form method="POST" action="{{ url_for('admin.edit_category', id=category.id) }}" class="space-y-5">
+        <div>
+            <label class="block text-sm font-medium text-slate-700">Название</label>
+            <input name="name" value="{{ category.name }}" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+        </div>
+        <div class="flex justify-end gap-2">
+            <button type="button" data-modal-close class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Отмена</button>
+            <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Сохранить</button>
+        </div>
+    </form>
+</template>
+{% endfor %}
+
+<template id="menuItemCreateTemplate">
+    <form method="POST" action="{{ url_for('admin.add_menu_item') }}" enctype="multipart/form-data" class="space-y-5">
+        {% include "admin/partials/menu_item_form_fields.html" %}
+        <div class="flex justify-end gap-2">
+            <button type="button" data-modal-close class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Отмена</button>
+            <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Создать</button>
+        </div>
+    </form>
+</template>
+
+{% for item in menu_items %}
+<template id="menuItemEditTemplate{{ item.id }}">
+    <form method="POST" action="{{ url_for('admin.edit_menu_item', id=item.id) }}" enctype="multipart/form-data" class="space-y-5">
+        <input type="hidden" name="current_image" value="{{ item.image or '' }}">
+        {% set menu_item = item %}
+        {% include "admin/partials/menu_item_form_fields.html" %}
+        <div class="flex justify-end gap-2">
+            <button type="button" data-modal-close class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Отмена</button>
+            <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Сохранить</button>
+        </div>
+    </form>
+</template>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const adminMenuRows = document.querySelectorAll(".menu-item-row");
+    const selectedCategoryTitle = document.getElementById("selectedCategoryTitle");
+    const selectedCategoryActions = document.getElementById("selectedCategoryActions");
+    const categoryActionsMenu = document.querySelector("[data-category-actions-menu]");
+    const categoryList = document.querySelector("[data-category-list]");
+    let draggedCategory = null;
+    let wasCategoryDragged = false;
+
+    function closeCategoryActionsMenu() {
+        categoryActionsMenu?.classList.add("hidden");
+    }
+
+    function setActiveCategoryButton(catId, categoryName) {
+        document.querySelectorAll('[data-action="adminFilterCat"]').forEach((button) => {
+            const isActive = button.dataset.param === String(catId);
+            button.classList.toggle("border-slate-900", isActive);
+            button.classList.toggle("bg-slate-900", isActive);
+            button.classList.toggle("text-white", isActive);
+            button.classList.toggle("border-slate-200", !isActive);
+            button.classList.toggle("bg-white", !isActive);
+            button.classList.toggle("text-slate-700", !isActive);
+            button.classList.toggle("hover:bg-slate-50", !isActive);
+        });
+
+        if (selectedCategoryTitle) {
+            selectedCategoryTitle.textContent = categoryName || "Все блюда";
+        }
+
+        selectedCategoryActions?.classList.toggle("hidden", catId === "all");
+        document.querySelectorAll("[data-category-action-item]").forEach((item) => {
+            item.classList.toggle("hidden", item.dataset.categoryActionItem !== String(catId));
+        });
+        closeCategoryActionsMenu();
+    }
+
+    document.addEventListener("click", (event) => {
+        const actionsToggle = event.target.closest("[data-category-actions-toggle]");
+        if (actionsToggle) {
+            categoryActionsMenu?.classList.toggle("hidden");
+            return;
+        }
+
+        const target = event.target.closest('[data-action="adminFilterCat"]');
+        if (target) {
+            if (wasCategoryDragged) {
+                event.preventDefault();
+                wasCategoryDragged = false;
+                return;
+            }
+
+            const category = target.dataset.param;
+            setActiveCategoryButton(category, target.dataset.categoryName);
+            adminMenuRows.forEach((row) => {
+                row.classList.toggle("hidden", category !== "all" && String(row.dataset.categoryId) !== String(category));
+            });
+            return;
+        }
+
+        if (!event.target.closest("[data-category-actions-menu]")) {
+            closeCategoryActionsMenu();
+        }
+    });
+
+    categoryList?.addEventListener("dragstart", (event) => {
+        draggedCategory = event.target.closest("[data-category-sort-id]");
+        if (!draggedCategory) return;
+
+        wasCategoryDragged = true;
+        draggedCategory.classList.add("opacity-50");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggedCategory.dataset.categorySortId);
+    });
+
+    categoryList?.addEventListener("dragover", (event) => {
+        if (!draggedCategory) return;
+
+        event.preventDefault();
+        const target = event.target.closest("[data-category-sort-id]");
+        if (!target || target === draggedCategory) return;
+
+        const rect = target.getBoundingClientRect();
+        const shouldInsertAfter = event.clientY > rect.top + rect.height / 2;
+        categoryList.insertBefore(draggedCategory, shouldInsertAfter ? target.nextSibling : target);
+    });
+
+    categoryList?.addEventListener("dragend", () => {
+        if (!draggedCategory) return;
+
+        draggedCategory.classList.remove("opacity-50");
+        draggedCategory = null;
+        saveCategoryOrder();
+        setTimeout(() => {
+            wasCategoryDragged = false;
+        }, 150);
+    });
+
+    function saveCategoryOrder() {
+        const categoryIds = [...categoryList.querySelectorAll("[data-category-sort-id]")]
+            .map((button) => Number(button.dataset.categorySortId));
+
+        if (!categoryIds.length) return;
+
+        fetch(categoryList.dataset.reorderUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ category_ids: categoryIds }),
+        }).then((response) => {
+            if (!response.ok) {
+                throw new Error("Category reorder failed");
+            }
+            return response.json();
+        }).then((data) => {
+            if (!data.ok) {
+                throw new Error(data.message || "Category reorder failed");
+            }
+        }).catch((error) => {
+            console.error(error);
+            window.location.reload();
+        });
+    }
+</script>
+{% endblock %}

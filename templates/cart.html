@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9, user-scalable=no">
+<title>Корзина</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+<div class="cart-page min-h-screen pb-28">
+    <header class="cart-page-top sticky top-0 z-20 bg-gray-100/95 backdrop-blur px-4 py-3">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <a href="{% if restaurant %}/{{ restaurant.slug }}{% else %}/{% endif %}" class="w-10 h-10 bg-white border rounded-xl flex items-center justify-center" aria-label="Назад">
+                <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+            </a>
+            <h1 class="text-xl font-bold" data-i18n="cart_title">Корзина</h1>
+            <div class="flex items-center gap-2">
+                <div id="langSwitcher" class="relative">
+                    <button
+                        id="langSwitcherBtn"
+                        type="button"
+                        class="w-10 h-10 bg-white border rounded-xl flex items-center justify-center"
+                        aria-label="Language"
+                        aria-haspopup="true"
+                        aria-expanded="false">
+                        RU
+                    </button>
+                    <div id="langSwitcherMenu" class="hidden absolute right-0 top-full mt-2 bg-white border rounded-xl shadow-lg overflow-hidden z-30">
+                        <a href="#" data-lang="ru" class="block px-4 py-2 hover:bg-gray-50">RU</a>
+                        <a href="#" data-lang="en" class="block px-4 py-2 hover:bg-gray-50">EN</a>
+                        <a href="#" data-lang="ky" class="block px-4 py-2 hover:bg-gray-50">KY</a>
+                    </div>
+                </div>
+                <button id="splitBillPageBtn" data-cart-tour="split" class="w-10 h-10 bg-white border rounded-xl flex items-center justify-center text-gray-800" aria-label="Разделить счет">
+                    <i class="fa-solid fa-code-branch" aria-hidden="true"></i>
+                </button>
+                <button id="clearCartPageBtn" data-cart-tour="clear" class="w-10 h-10 bg-white border rounded-xl flex items-center justify-center text-gray-800" aria-label="Очистить корзину">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4">
+        <section id="cartPageItems" data-cart-tour="items" class="cart-page-list mt-3 flex flex-col gap-1"></section>
+
+        <section data-cart-tour="menu" class="mt-5">
+            <h2 class="text-xl font-bold mb-3" data-i18n="similar">Похожее</h2>
+            <div id="cartPageMenu" class="grid gap-3 sm:gap-4 grid-cols-3 md:grid-cols-4 xl:grid-cols-6"></div>
+        </section>
+    </main>
+
+    <footer class="cart-page-bottom fixed left-0 right-0 bottom-0 z-20 bg-white border-t px-4 py-3">
+        <div class="max-w-7xl mx-auto sm:flex sm:items-center sm:justify-between sm:gap-4">
+            <div class="flex items-center justify-between font-bold text-lg mb-3 sm:mb-0 sm:min-w-[220px]">
+                <span data-i18n="total">Итого</span>
+                <span><span id="cartPageTotal">0</span> c</span>
+            </div>
+            <a href="#" id="cartPageCheckout" data-cart-tour="checkout" class="block w-full sm:w-auto sm:min-w-[280px] text-center bg-green-600 text-white py-3 px-8 rounded-xl font-semibold">
+                <span data-i18n="checkout">Оформить заказ</span>
+            </a>
+        </div>
+    </footer>
+</div>
+
+<div id="cartTourOverlay" class="cart-tour-overlay hidden"></div>
+<div id="cartTourPopover" class="cart-tour-popover hidden" role="dialog" aria-live="polite">
+    <div id="cartTourStep" class="cart-tour-step">1/5</div>
+    <h3 id="cartTourTitle" class="cart-tour-title"></h3>
+    <p id="cartTourText" class="cart-tour-text"></p>
+    <div class="cart-tour-actions">
+        <button id="cartTourSkipBtn" type="button" class="cart-tour-skip" data-i18n="cart_tour_skip">Пропустить</button>
+        <button id="cartTourNextBtn" type="button" class="cart-tour-next" data-i18n="cart_tour_next">Далее</button>
+    </div>
+</div>
+
+<div id="clearCartPageModal" class="hidden modal-overlay fixed inset-0 bg-black/40 flex items-center justify-center z-30">
+    <div class="modal-content bg-white p-6 rounded-xl max-w-sm w-full mx-4">
+        <h2 class="text-lg font-bold mb-4" data-i18n="confirm_title">Подтверждение</h2>
+        <p class="mb-4" data-i18n="clear_cart_confirm_text">Вы уверены, что хотите очистить корзину?</p>
+        <div class="flex gap-2">
+            <button id="confirmClearCartPageBtn" class="flex-1 bg-red-500 text-white py-2 rounded" data-i18n="yes">Да</button>
+            <button id="cancelClearCartPageBtn" class="flex-1 bg-gray-300 py-2 rounded" data-i18n="cancel">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<div id="splitBillPageModal" class="hidden modal-overlay fixed inset-0 bg-black/40 flex items-center justify-center z-30">
+    <div class="modal-content bg-white p-6 rounded-xl max-w-sm w-full mx-4">
+        <h2 class="text-lg font-bold mb-4" data-i18n="split_bill_title">Разделить счет</h2>
+        <p class="mb-4"><span data-i18n="split_bill_total">Общая сумма</span>: <span id="splitPageTotal">0</span> c</p>
+        <input id="splitPageGuestsCount" type="number" min="1" placeholder="Количество гостей" data-i18n-placeholder="guests_count_placeholder" class="w-full p-2 border rounded mb-4">
+        <button id="calculateSplitPageBtn" class="w-full bg-blue-500 text-white py-2 rounded mb-4" data-i18n="calculate">Рассчитать</button>
+        <div id="splitPageResult" class="text-center text-lg font-bold hidden">
+            <span data-i18n="per_person">На человека</span>: <span id="splitPagePerPerson">0</span> c
+        </div>
+        <button id="closeSplitPageBtn" class="w-full bg-gray-300 py-2 rounded" data-i18n="close">Закрыть</button>
+    </div>
+</div>
+
+<script>
+    window.RESTAURANT_SLUG = {% if restaurant %}{{ restaurant.slug|tojson }}{% else %}null{% endif %};
+</script>
+<script type="module" src="/static/js/cart-page.js"></script>
+</body>
+</html>
