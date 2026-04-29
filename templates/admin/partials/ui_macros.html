@@ -80,3 +80,13 @@
 </svg>
 {% endif %}
 {%- endmacro %}
+
+{% macro media_thumb(src=None, alt="", label="", container_class="h-10 w-10 rounded-full border border-slate-200 bg-slate-100", image_class="h-full w-full object-cover", text_class="text-sm font-semibold text-slate-500") -%}
+<div class="flex shrink-0 items-center justify-center overflow-hidden {{ container_class }}">
+    {% if src %}
+    <img src="{{ src }}" alt="{{ alt }}" class="{{ image_class }}">
+    {% else %}
+    <span class="{{ text_class }}">{{ (label[:1] if label else "?")|upper }}</span>
+    {% endif %}
+</div>
+{%- endmacro %}

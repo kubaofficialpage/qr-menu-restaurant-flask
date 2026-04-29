@@ -40,13 +40,14 @@
                 <tr>
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-3">
-                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 p-2">
-                                {% if restaurant.logo %}
-                                <img src="/static/resource/{{ restaurant.logo }}" alt="{{ restaurant.name }}" class="h-full w-full rounded object-cover">
-                                {% else %}
-                                <img src="/static/resource/img/restaurant-market.svg" alt="" class="h-full w-full object-contain">
-                                {% endif %}
-                            </div>
+                            {{ ui.media_thumb(
+                                src="/static/resource/" ~ restaurant.logo if restaurant.logo else none,
+                                alt=restaurant.name,
+                                label=restaurant.name,
+                                container_class="h-11 w-11 rounded-md border border-slate-200 bg-slate-50",
+                                image_class="h-full w-full rounded object-cover",
+                                text_class="text-sm font-semibold text-slate-500"
+                            ) }}
                             <div class="min-w-0">
                                 <div class="truncate font-semibold">{{ restaurant.name }}</div>
                                 <a href="/{{ restaurant.slug }}" class="text-sm text-slate-500 hover:text-blue-600">/{{ restaurant.slug }}</a>
