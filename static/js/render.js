@@ -4,10 +4,12 @@ import {
     formatShortText,
     getMenuImageSrc,
     isMenuItemAvailable,
+    renderMenuImageMarkup,
     renderQuantityControl,
     renderUnavailableOverlay,
     setText,
 } from './menu-ui.js';
+import { syncMenuImageElement } from './image.js';
 import { state } from './state.js';
 import { t } from './i18n.js';
 
@@ -206,16 +208,14 @@ function renderMenuItemHtml(item, index = 0) {
     return `
         <article class="menu-item is-entering bg-white rounded-[24px] p-1 shadow ${isAvailable ? "cursor-pointer" : "opacity-70 cursor-not-allowed"}" style="--menu-item-delay:${delay}ms" data-menu-item-id="${itemId}" ${isAvailable ? `data-action="openItemModal" data-param="${itemId}"` : 'aria-disabled="true"'}>
             <div class="img-box relative bg-gray-50 rounded-[16px] overflow-hidden">
-                <img src="${IMAGE_PLACEHOLDER}" alt="" class="image-placeholder w-full h-40 object-contain p-8">
-                <div class="image-spinner"></div>
-                <img
-                    src="${escapeHtml(imageSrc)}"
-                    data-menu-image-src="${escapeHtml(imageSrc)}"
-                    alt="${escapeHtml(item.name)}"
-                    loading="lazy"
-                    decoding="async"
-                    class="menu-image absolute inset-0 w-full h-40 object-cover rounded-[16px] p-1 opacity-0"
-                >
+                ${renderMenuImageMarkup({
+                    src: imageSrc,
+                    alt: item.name,
+                    placeholderClass: "image-placeholder w-full h-40 object-contain p-8",
+                    spinnerClass: "image-spinner",
+                    imageClass: "menu-image absolute inset-0 w-full h-40 object-cover rounded-[16px] p-1 opacity-0",
+                    dataAttributeName: "data-menu-image-src",
+                })}
                 ${isAvailable ? "" : renderUnavailableOverlay()}
                 <div data-cart-control-id="${itemId}" class="absolute bottom-2 right-2">
                     ${renderCartButton(item.id)}
@@ -287,22 +287,7 @@ function updateMenuImage(card, item) {
     if (!image) return;
 
     const imageSrc = getMenuImageSrc(item);
-    if (image.dataset.menuImageSrc === imageSrc) return;
-
-    image.dataset.menuImageSrc = imageSrc;
-    image.classList.remove("is-loaded");
-    image.src = imageSrc;
-    image.alt = item.name ?? "";
-    ensureImageSpinner(image);
-}
-
-function ensureImageSpinner(image) {
-    const previous = image.previousElementSibling;
-    if (previous?.classList.contains("image-spinner")) return;
-
-    const spinner = document.createElement("div");
-    spinner.className = "image-spinner";
-    image.before(spinner);
+    syncMenuImageElement(image, imageSrc, item.name ?? "", "image-spinner");
 }
 
 function toggleMenuEmptyState(menu, isVisible) {

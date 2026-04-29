@@ -1,0 +1,42 @@
+<label class="block text-sm font-medium text-slate-700">{{ upload_label }}</label>
+<label data-image-upload-dropzone class="mt-1 block cursor-pointer rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-4 transition hover:border-blue-300 hover:bg-blue-50">
+    <input name="{{ upload_name }}" type="file" accept="image/*" class="sr-only" data-image-upload-input>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div class="flex {{ upload_preview_box_class }} items-center justify-center overflow-hidden border border-slate-200 bg-white">
+            {% if upload_current_src %}
+            <img src="{{ upload_current_src }}" alt="{{ upload_alt }}" class="h-full w-full object-cover" data-image-upload-preview>
+            {% else %}
+            <img src="" alt="" class="hidden h-full w-full object-cover" data-image-upload-preview>
+            {% if upload_placeholder_kind == "restaurant" %}
+            <svg data-image-upload-placeholder class="h-9 w-9 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M3 21h18"></path>
+                <path d="M5 21V7l8-4 6 4v14"></path>
+                <path d="M9 21v-8h6v8"></path>
+            </svg>
+            {% elif upload_placeholder_kind == "avatar" %}
+            <svg data-image-upload-placeholder class="h-9 w-9 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="8" r="4"></circle>
+                <path d="M6 20a6 6 0 0 1 12 0"></path>
+            </svg>
+            {% else %}
+            <svg data-image-upload-placeholder class="h-9 w-9 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <circle cx="9" cy="9" r="2"></circle>
+                <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path>
+            </svg>
+            {% endif %}
+            {% endif %}
+        </div>
+        <div class="min-w-0 flex-1">
+            <div class="text-sm font-semibold text-slate-800">{{ upload_title }}</div>
+            <div class="mt-1 text-xs text-slate-500">{{ upload_hint }}</div>
+            <div data-image-upload-filename class="mt-2 truncate text-xs font-medium text-blue-600">
+                {% if upload_current_src %}{{ upload_current_label }}{% else %}Файл не выбран{% endif %}
+            </div>
+            <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                <div data-image-upload-progress class="h-full w-0 rounded-full bg-blue-600 transition-all duration-500"></div>
+            </div>
+            <div data-image-upload-status class="mt-1 text-xs text-slate-500">Ожидает выбора файла</div>
+        </div>
+    </div>
+</label>

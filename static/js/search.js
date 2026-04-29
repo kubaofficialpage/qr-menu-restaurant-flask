@@ -1,4 +1,6 @@
-import { IMAGE_PLACEHOLDER, escapeHtml, renderCategories, renderMenu } from './render.js';
+import { escapeHtml, renderCategories, renderMenu } from './render.js';
+import { syncMenuImageElement } from './image.js';
+import { getMenuImageSrc, renderMenuImageMarkup } from './menu-ui.js';
 import { state } from './state.js';
 import { t } from './i18n.js';
 
@@ -124,16 +126,14 @@ function createSearchDropdownItem(item) {
             class="w-full flex items-center gap-3 px-3 py-2 text-left ${isAvailable ? "hover:bg-gray-50" : "cursor-not-allowed opacity-60"}"
             role="option">
             <div class="relative w-12 h-12 shrink-0 bg-gray-50 rounded-lg overflow-hidden">
-                <img src="${IMAGE_PLACEHOLDER}" alt="" class="w-12 h-12 object-contain p-2">
-                <div class="image-spinner image-spinner-sm"></div>
-                <img
-                    src="${escapeHtml(imageSrc)}"
-                    data-search-image-src="${escapeHtml(imageSrc)}"
-                    alt="${escapeHtml(item.name)}"
-                    loading="lazy"
-                    decoding="async"
-                    class="menu-image absolute inset-0 w-12 h-12 object-cover rounded-lg opacity-0"
-                >
+                ${renderMenuImageMarkup({
+                    src: imageSrc,
+                    alt: item.name,
+                    placeholderClass: "w-12 h-12 object-contain p-2",
+                    spinnerClass: "image-spinner image-spinner-sm",
+                    imageClass: "menu-image absolute inset-0 w-12 h-12 object-cover rounded-lg opacity-0",
+                    dataAttributeName: "data-search-image-src",
+                })}
             </div>
             <span class="min-w-0 flex-1">
                 <span data-search-item-name class="block truncate font-medium text-gray-900">${escapeHtml(item.name)}</span>
@@ -173,26 +173,11 @@ function updateSearchDropdownImage(button, item) {
     if (!image) return;
 
     const imageSrc = getSearchImageSrc(item);
-    if (image.dataset.searchImageSrc === imageSrc) return;
-
-    image.dataset.searchImageSrc = imageSrc;
-    image.classList.remove("is-loaded");
-    image.src = imageSrc;
-    image.alt = item.name ?? "";
-    ensureSearchImageSpinner(image);
-}
-
-function ensureSearchImageSpinner(image) {
-    const previous = image.previousElementSibling;
-    if (previous?.classList.contains("image-spinner")) return;
-
-    const spinner = document.createElement("div");
-    spinner.className = "image-spinner image-spinner-sm";
-    image.before(spinner);
+    syncMenuImageElement(image, imageSrc, item.name ?? "", "image-spinner image-spinner-sm");
 }
 
 function getSearchImageSrc(item) {
-    return item.image ? `/static/resource/${item.image}` : `/static/resource/img/default_food_png.png`;
+    return getMenuImageSrc(item);
 }
 
 function toggleSearchEmptyState(dropdown, isVisible) {

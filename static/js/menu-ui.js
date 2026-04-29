@@ -23,6 +23,28 @@ export function getMenuImageSrc(item) {
     return item.image ? `/static/resource/${item.image}` : "/static/resource/img/default_food_png.png";
 }
 
+export function renderMenuImageMarkup({
+    src,
+    alt = "",
+    placeholderClass = "image-placeholder w-full h-40 object-contain p-8",
+    spinnerClass = "image-spinner",
+    imageClass = "menu-image absolute inset-0 w-full h-40 object-cover rounded-[16px] p-1 opacity-0",
+    dataAttributeName = "data-menu-image-src",
+}) {
+    return `
+        <img src="${IMAGE_PLACEHOLDER}" alt="" class="${placeholderClass}">
+        <div class="${spinnerClass}"></div>
+        <img
+            src="${escapeHtml(src)}"
+            ${dataAttributeName}="${escapeHtml(src)}"
+            alt="${escapeHtml(alt)}"
+            loading="lazy"
+            decoding="async"
+            class="${imageClass}"
+        >
+    `;
+}
+
 export function formatShortText(value, maxLength, suffix = "...") {
     const text = String(value ?? "");
     return text.length > maxLength ? text.slice(0, maxLength) + suffix : text;
