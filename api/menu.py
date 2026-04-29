@@ -9,7 +9,12 @@ def get_restaurant_by_slug(slug):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
-        "SELECT * FROM restaurants WHERE slug = %s AND is_active = TRUE",
+        """
+        SELECT r.*, u.name AS creator_name, u.email AS creator_email, u.avatar AS creator_avatar
+        FROM restaurants r
+        LEFT JOIN users u ON u.id = r.created_by
+        WHERE r.slug = %s AND r.is_active = TRUE
+        """,
         (slug,),
     )
     restaurant = cursor.fetchone()
@@ -22,7 +27,12 @@ def get_restaurant_by_slug_any_status(slug):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
-        "SELECT * FROM restaurants WHERE slug = %s",
+        """
+        SELECT r.*, u.name AS creator_name, u.email AS creator_email, u.avatar AS creator_avatar
+        FROM restaurants r
+        LEFT JOIN users u ON u.id = r.created_by
+        WHERE r.slug = %s
+        """,
         (slug,),
     )
     restaurant = cursor.fetchone()
@@ -34,7 +44,16 @@ def get_restaurant_by_slug_any_status(slug):
 def get_default_restaurant():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM restaurants WHERE is_active = TRUE ORDER BY id LIMIT 1")
+    cursor.execute(
+        """
+        SELECT r.*, u.name AS creator_name, u.email AS creator_email, u.avatar AS creator_avatar
+        FROM restaurants r
+        LEFT JOIN users u ON u.id = r.created_by
+        WHERE r.is_active = TRUE
+        ORDER BY r.id
+        LIMIT 1
+        """
+    )
     restaurant = cursor.fetchone()
     cursor.close()
     conn.close()

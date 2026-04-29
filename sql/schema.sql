@@ -8,6 +8,7 @@ CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
   email VARCHAR(190) NOT NULL,
+  avatar VARCHAR(255) NULL,
   password_hash VARCHAR(255) NOT NULL,
   global_role ENUM('developer', 'user') NOT NULL DEFAULT 'user',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -111,4 +112,3 @@ CREATE TABLE restaurant_settings (
     FOREIGN KEY (restaurant_id) REFERENCES restaurants(id)
     ON DELETE CASCADE
 );
-

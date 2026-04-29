@@ -12,6 +12,7 @@ from database.db import get_db
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
 UPLOAD_FOLDER = "static/resource/img"
+USER_PROFILE_UPLOAD_FOLDER = "static/resource/user_profiles"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -33,29 +34,43 @@ def get_restaurant_upload_folder(restaurant):
     return folder
 
 
-def save_menu_image(image, restaurant):
+def get_user_profile_upload_folder():
+    os.makedirs(USER_PROFILE_UPLOAD_FOLDER, exist_ok=True)
+    return USER_PROFILE_UPLOAD_FOLDER
+
+
+def save_uploaded_image(image, upload_folder, relative_prefix, quality=75, max_size=(800, 800)):
     filename = f"{uuid.uuid4().hex}.webp"
-    upload_folder = get_restaurant_upload_folder(restaurant)
     temp_path = os.path.join(upload_folder, "temp_" + filename)
     final_path = os.path.join(upload_folder, filename)
 
     image.save(temp_path)
-    compress_to_webp(temp_path, final_path)
+    compress_to_webp(temp_path, final_path, quality=quality, max_size=max_size)
     os.remove(temp_path)
 
-    return f"img/{restaurant['slug']}/{filename}"
+    return f"{relative_prefix}/{filename}"
+
+
+def save_menu_image(image, restaurant):
+    upload_folder = get_restaurant_upload_folder(restaurant)
+    return save_uploaded_image(image, upload_folder, f"img/{restaurant['slug']}")
 
 
 def save_restaurant_logo(image, restaurant):
     return save_menu_image(image, restaurant)
 
 
-def delete_menu_image(image_path):
-    if not image_path:
+def save_user_avatar(image):
+    upload_folder = get_user_profile_upload_folder()
+    return save_uploaded_image(image, upload_folder, "user_profiles", quality=80, max_size=(600, 600))
+
+
+def delete_resource_file(resource_path):
+    if not resource_path:
         return
 
-    relative_path = image_path.replace("\\", "/")
-    if not relative_path.startswith("img/"):
+    relative_path = resource_path.replace("\\", "/")
+    if not (relative_path.startswith("img/") or relative_path.startswith("user_profiles/")):
         return
 
     file_path = os.path.normpath(os.path.join("static/resource", relative_path))
@@ -67,6 +82,10 @@ def delete_menu_image(image_path):
 
     if os.path.exists(absolute_path):
         os.remove(absolute_path)
+
+
+def delete_menu_image(image_path):
+    delete_resource_file(image_path)
 
 
 def fetch_one(query, params=()):
@@ -84,7 +103,7 @@ def current_user():
     if not user_id:
         return None
     return fetch_one(
-        "SELECT id, name, email, global_role FROM users WHERE id = %s AND is_active = TRUE",
+        "SELECT id, name, email, global_role, avatar FROM users WHERE id = %s AND is_active = TRUE",
         (user_id,),
     )
 
@@ -473,13 +492,13 @@ def users():
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
         """
-        SELECT u.id, u.name, u.email, u.global_role, u.is_active, u.created_at,
+        SELECT u.id, u.name, u.email, u.global_role, u.avatar, u.is_active, u.created_at,
                GROUP_CONCAT(r.name ORDER BY r.name SEPARATOR ', ') AS restaurants,
                GROUP_CONCAT(r.id ORDER BY r.name SEPARATOR ',') AS restaurant_ids
         FROM users u
         LEFT JOIN restaurant_users ru ON ru.user_id = u.id
         LEFT JOIN restaurants r ON r.id = ru.restaurant_id
-        GROUP BY u.id, u.name, u.email, u.global_role, u.is_active, u.created_at
+        GROUP BY u.id, u.name, u.email, u.global_role, u.avatar, u.is_active, u.created_at
         ORDER BY u.created_at DESC
         """
     )
@@ -499,6 +518,8 @@ def add_user():
     password = request.form.get("password", "")
     global_role = request.form.get("global_role", "user")
     restaurant_ids = selected_restaurant_ids()
+    avatar = request.files.get("avatar")
+    avatar_path = None
 
     if global_role not in ("developer", "user"):
         abort(400)
@@ -510,12 +531,15 @@ def add_user():
     conn = get_db()
     cursor = conn.cursor()
     try:
+        if avatar and avatar.filename and allowed_file(avatar.filename):
+            avatar_path = save_user_avatar(avatar)
+
         cursor.execute(
             """
-            INSERT INTO users (name, email, password_hash, global_role, is_active)
-            VALUES (%s, %s, %s, %s, TRUE)
+            INSERT INTO users (name, email, password_hash, global_role, avatar, is_active)
+            VALUES (%s, %s, %s, %s, %s, TRUE)
             """,
-            (name, email, generate_password_hash(password), global_role),
+            (name, email, generate_password_hash(password), global_role, avatar_path),
         )
         user_id = cursor.lastrowid
         if restaurant_ids and global_role == "user":
@@ -524,6 +548,8 @@ def add_user():
         flash("Пользователь создан.", "success")
     except Exception as exc:
         conn.rollback()
+        if avatar_path:
+            delete_resource_file(avatar_path)
         flash(f"Не удалось создать пользователя: {exc}", "error")
     finally:
         cursor.close()
@@ -541,6 +567,14 @@ def edit_user(user_id):
     global_role = request.form.get("global_role", "user")
     is_active = 1 if request.form.get("is_active") == "on" else 0
     restaurant_ids = selected_restaurant_ids()
+    avatar = request.files.get("avatar")
+    existing_user = fetch_one("SELECT avatar FROM users WHERE id = %s", (user_id,))
+
+    if not existing_user:
+        abort(404)
+
+    avatar_path = existing_user.get("avatar")
+    previous_avatar_path = avatar_path
 
     if global_role not in ("developer", "user"):
         abort(400)
@@ -552,29 +586,34 @@ def edit_user(user_id):
     conn = get_db()
     cursor = conn.cursor()
     try:
+        if avatar and avatar.filename and allowed_file(avatar.filename):
+            avatar_path = save_user_avatar(avatar)
+
         if password:
             cursor.execute(
                 """
                 UPDATE users
-                SET name = %s, email = %s, password_hash = %s, global_role = %s, is_active = %s
+                SET name = %s, email = %s, password_hash = %s, global_role = %s, avatar = %s, is_active = %s
                 WHERE id = %s
                 """,
-                (name, email, generate_password_hash(password), global_role, is_active, user_id),
+                (name, email, generate_password_hash(password), global_role, avatar_path, is_active, user_id),
             )
         else:
             cursor.execute(
                 """
                 UPDATE users
-                SET name = %s, email = %s, global_role = %s, is_active = %s
+                SET name = %s, email = %s, global_role = %s, avatar = %s, is_active = %s
                 WHERE id = %s
                 """,
-                (name, email, global_role, is_active, user_id),
+                (name, email, global_role, avatar_path, is_active, user_id),
             )
 
         cursor.execute("DELETE FROM restaurant_users WHERE user_id = %s", (user_id,))
         if restaurant_ids and global_role == "user":
             assign_user_restaurants(cursor, user_id, restaurant_ids)
         conn.commit()
+        if avatar_path != previous_avatar_path:
+            delete_resource_file(previous_avatar_path)
         flash("Пользователь обновлен.", "success")
     except Exception as exc:
         conn.rollback()
@@ -595,10 +634,13 @@ def delete_user(user_id):
 
     conn = get_db()
     cursor = conn.cursor()
+    user = fetch_one("SELECT avatar FROM users WHERE id = %s", (user_id,))
     cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
     conn.commit()
     cursor.close()
     conn.close()
+    if user:
+        delete_resource_file(user.get("avatar"))
     flash("Пользователь удален.", "success")
     return redirect(url_for("admin.users"))
 
