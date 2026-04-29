@@ -32,6 +32,7 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Роль</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Рестораны</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Статус</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">On / Off</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Действия</th>
                 </tr>
             </thead>
@@ -66,6 +67,16 @@
                         {% endif %}
                     </td>
                     <td class="px-4 py-3">
+                        <form method="POST" action="{{ url_for('admin.toggle_user_active', user_id=user.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <label class="inline-flex cursor-pointer items-center gap-2">
+                                <input type="checkbox" name="is_active" class="peer sr-only" {% if user.is_active %}checked{% endif %} onchange="this.form.submit()">
+                                <span class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-emerald-500 peer-checked:after:translate-x-5"></span>
+                                <span class="text-xs font-medium text-slate-600">{{ "On" if user.is_active else "Off" }}</span>
+                            </label>
+                        </form>
+                    </td>
+                    <td class="px-4 py-3">
                         <div class="flex justify-end gap-2">
                             <button type="button" data-modal-template="userEditTemplate{{ user.id }}" data-modal-title="Редактировать пользователя" class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50">
                                 {{ ui.icon("edit", "h-3.5 w-3.5") }}
@@ -82,7 +93,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="px-4 py-12 text-center text-sm text-slate-500">Пользователей пока нет.</td>
+                    <td colspan="6" class="px-4 py-12 text-center text-sm text-slate-500">Пользователей пока нет.</td>
                 </tr>
                 {% endfor %}
             </tbody>

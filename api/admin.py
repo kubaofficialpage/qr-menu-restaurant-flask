@@ -645,6 +645,35 @@ def delete_user(user_id):
     return redirect(url_for("admin.users"))
 
 
+@admin.route("/users/toggle-active/<int:user_id>", methods=["POST"])
+@developer_required
+def toggle_user_active(user_id):
+    validate_csrf()
+
+    if user_id == session.get("user_id") and request.form.get("is_active") != "on":
+        flash("РќРµР»СЊР·СЏ РІС‹РєР»СЋС‡РёС‚СЊ СЃРІРѕР№ Р°РєРєР°СѓРЅС‚.", "error")
+        return redirect(url_for("admin.users"))
+
+    user = fetch_one("SELECT id FROM users WHERE id = %s", (user_id,))
+    if not user:
+        abort(404)
+
+    is_active = 1 if request.form.get("is_active") == "on" else 0
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE users SET is_active = %s WHERE id = %s",
+        (is_active, user_id),
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    flash("РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІРєР»СЋС‡РµРЅ." if is_active else "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІС‹РєР»СЋС‡РµРЅ.", "success")
+    return redirect(url_for("admin.users"))
+
+
 @admin.route("/restaurants/add", methods=["GET", "POST"])
 @developer_required
 def add_restaurant():
