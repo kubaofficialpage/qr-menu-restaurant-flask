@@ -1,60 +1,222 @@
 {% extends "admin/base.html" %}
+{% import "admin/partials/ui_macros.html" as ui %}
 
-{% block title %}Главная - Админка QR Menu{% endblock %}
-{% block page_title %}Главная{% endblock %}
+{% macro stat_card(title, value, hint, accent="emerald") -%}
+{% set accent_map = {
+    "emerald": "from-emerald-500/15 to-emerald-50 text-emerald-700",
+    "blue": "from-blue-500/15 to-blue-50 text-blue-700",
+    "amber": "from-amber-500/15 to-amber-50 text-amber-700",
+    "rose": "from-rose-500/15 to-rose-50 text-rose-700",
+    "violet": "from-violet-500/15 to-violet-50 text-violet-700"
+} %}
+<article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="bg-gradient-to-br px-5 py-5 {{ accent_map.get(accent, accent_map['emerald']) }}">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{{ title }}</p>
+        <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ value }}</p>
+        <p class="mt-2 text-sm text-slate-600">{{ hint }}</p>
+    </div>
+</article>
+{%- endmacro %}
+
+{% block title %}Dashboard - Админка QR Menu{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block header_actions %}
+{% if analytics.selected_restaurant %}
+<a href="{{ url_for('admin.menu') }}" class="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+    {{ ui.icon("list-plus") }}
+    <span>Открыть меню ресторана</span>
+</a>
+{% endif %}
+{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <h2 class="text-2xl font-bold tracking-tight">Обзор</h2>
-    <p class="mt-1 text-sm text-slate-500">Быстрый доступ к управлению ресторанами и меню.</p>
-</div>
-
-<div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-    <section class="rounded-lg border border-slate-200 bg-white p-5">
-        <div class="text-sm font-medium text-slate-500">Текущий ресторан</div>
-        <div class="mt-2 text-2xl font-bold">{{ current_restaurant.name if current_restaurant else "Не выбран" }}</div>
-        {% if current_restaurant %}
-        <a href="/{{ current_restaurant.slug }}" class="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800">Открыть публичное меню</a>
-        {% endif %}
-    </section>
-
-    <section class="rounded-lg border border-slate-200 bg-white p-5">
-        <div class="text-sm font-medium text-slate-500">Доступные рестораны</div>
-        <div class="mt-2 text-2xl font-bold">{{ restaurants|length }}</div>
-        <button type="button" data-modal-template="restaurantSelectTemplate" data-modal-title="Выберите ресторан" class="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M3 10h18"></path>
-                <path d="M5 10v10h14V10"></path>
-                <path d="M7 10V6a5 5 0 0 1 10 0v4"></path>
-            </svg>
-            <span>Выбрать ресторан</span>
-        </button>
-    </section>
-
-    <section class="rounded-lg border border-slate-200 bg-white p-5">
-        <div class="text-sm font-medium text-slate-500">Роль</div>
-        <div class="mt-2 text-2xl font-bold">{{ "Разработчик" if current_user and current_user.global_role == "developer" else "Админ ресторана" }}</div>
-        <p class="mt-2 text-sm text-slate-500">Доступ зависит от роли пользователя и привязки к ресторану.</p>
-    </section>
-</div>
-
-<section class="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
-    <div class="border-b border-slate-200 p-4">
-        <h3 class="font-semibold">Доступные рестораны</h3>
-        <p class="text-sm text-slate-500">Выберите ресторан перед управлением меню.</p>
-    </div>
-    <div class="divide-y divide-slate-200">
-        {% for restaurant in restaurants %}
-        <div class="flex items-center justify-between gap-4 p-4">
-            <div>
-                <div class="font-semibold">{{ restaurant.name }}</div>
-                <a href="/{{ restaurant.slug }}" class="text-sm text-slate-500 hover:text-blue-600">/{{ restaurant.slug }}</a>
+<section class="space-y-6">
+    <div class="overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_36%),linear-gradient(135deg,#0f172a,#1e293b)] p-6 text-white shadow-xl">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div class="max-w-2xl">
+                <p class="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200">Analytics Overview</p>
+                <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Полная статистика по визитам, сессиям и интересу к блюдам</h2>
+                <p class="mt-3 text-sm leading-6 text-slate-300">
+                    Дашборд собирает события посещения страницы ресторана и каждое добавление блюда в корзину.
+                    По выбранному ресторану ниже строятся графики за последние 14 дней.
+                </p>
             </div>
-            <a href="{{ url_for('admin.select_restaurant', restaurant_id=restaurant.id) }}" class="rounded-md border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50">Выбрать</a>
+            {% if analytics.selected_restaurant %}
+            <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+                <p class="text-xs uppercase tracking-[0.18em] text-slate-300">Активный ресторан</p>
+                <div class="mt-3 flex items-center gap-3">
+                    {{ ui.media_thumb(
+                        src="/static/resource/" ~ analytics.selected_restaurant.logo if analytics.selected_restaurant.logo else none,
+                        alt=analytics.selected_restaurant.name,
+                        label=analytics.selected_restaurant.name,
+                        container_class="h-14 w-14 rounded-2xl border border-white/10 bg-white/10",
+                        image_class="h-full w-full rounded-2xl object-cover",
+                        text_class="text-lg font-bold text-white"
+                    ) }}
+                    <div>
+                        <p class="text-lg font-semibold">{{ analytics.selected_restaurant.name }}</p>
+                        <p class="text-sm text-slate-300">/{{ analytics.selected_restaurant.slug }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="p-6 text-sm text-slate-500">Нет доступных ресторанов.</div>
-        {% endfor %}
     </div>
+
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {{ stat_card("Рестораны", analytics.overview.restaurants, "Количество доступных ресторанов", "violet") }}
+        {{ stat_card("Блюда", analytics.overview.menu_items, "Все позиции меню в зоне доступа", "blue") }}
+        {{ stat_card("Добавлений", analytics.overview.cart_adds, "Сколько раз блюда добавляли в корзину", "emerald") }}
+        {{ stat_card("Визиты", analytics.overview.visits, "Все открытия ссылки ресторана", "amber") }}
+        {{ stat_card("Сессии", analytics.overview.sessions, "Уникальные сессии по визитам", "rose") }}
+    </div>
+
+    {% if analytics.selected_restaurant %}
+    <div class="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="text-xl font-bold tracking-tight text-slate-900">{{ analytics.selected_restaurant.name }}</h3>
+                    <p class="mt-1 text-sm text-slate-500">Ключевые показатели и динамика активности ресторана</p>
+                </div>
+                <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                    /{{ analytics.selected_restaurant.slug }}
+                </span>
+            </div>
+
+            <div class="mt-5 grid gap-4 sm:grid-cols-2 2xl:grid-cols-5">
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Блюда</p>
+                    <p class="mt-2 text-2xl font-bold text-slate-900">{{ analytics.selected_restaurant.menu_items }}</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Категории</p>
+                    <p class="mt-2 text-2xl font-bold text-slate-900">{{ analytics.selected_restaurant.categories }}</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Добавлений</p>
+                    <p class="mt-2 text-2xl font-bold text-slate-900">{{ analytics.selected_restaurant.cart_adds }}</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Визиты</p>
+                    <p class="mt-2 text-2xl font-bold text-slate-900">{{ analytics.selected_restaurant.visits }}</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Сессии</p>
+                    <p class="mt-2 text-2xl font-bold text-slate-900">{{ analytics.selected_restaurant.sessions }}</p>
+                </div>
+            </div>
+
+            <div class="mt-6 grid gap-5 xl:grid-cols-2">
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div class="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-900">Тренд за 14 дней</h4>
+                            <p class="mt-1 text-xs text-slate-500">Визиты и добавления в корзину по дням</p>
+                        </div>
+                    </div>
+                    <div class="h-72">
+                        <canvas id="dailyAnalyticsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-slate-900">Топ блюд</h4>
+                        <p class="mt-1 text-xs text-slate-500">Какие позиции чаще всего добавляют в корзину</p>
+                    </div>
+                    <div class="h-72">
+                        <canvas id="topDishesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <aside class="space-y-6">
+            <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-900">Переключение ресторана</h3>
+                        <p class="mt-1 text-sm text-slate-500">Меняет активный ресторан для детальной статистики</p>
+                    </div>
+                </div>
+                <div class="mt-4 flex max-h-[20rem] flex-col gap-2 overflow-y-auto pr-1">
+                    {% for restaurant in restaurants %}
+                    <a href="{{ url_for('admin.select_restaurant', restaurant_id=restaurant.id, next='dashboard') }}"
+                       class="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition {% if analytics.selected_restaurant.id == restaurant.id %}border-slate-900 bg-slate-900 text-white shadow-lg{% else %}border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white{% endif %}">
+                        <span class="min-w-0">
+                            <span class="block truncate font-semibold">{{ restaurant.name }}</span>
+                            <span class="block truncate text-xs {% if analytics.selected_restaurant.id == restaurant.id %}text-slate-300{% else %}text-slate-500{% endif %}">/{{ restaurant.slug }}</span>
+                        </span>
+                        <span class="rounded-full px-2 py-1 text-[11px] font-semibold {% if analytics.selected_restaurant.id == restaurant.id %}bg-white/10 text-white{% else %}bg-slate-200 text-slate-700{% endif %}">
+                            {% if analytics.selected_restaurant.id == restaurant.id %}Active{% else %}Select{% endif %}
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="mb-4">
+                    <h3 class="text-base font-semibold text-slate-900">Сравнение ресторанов</h3>
+                    <p class="mt-1 text-sm text-slate-500">Визиты, сессии и добавления по каждому ресторану</p>
+                </div>
+                <div class="h-80">
+                    <canvas id="restaurantsChart"></canvas>
+                </div>
+            </section>
+        </aside>
+    </div>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-5 py-4">
+            <h3 class="text-base font-semibold text-slate-900">Таблица по ресторанам</h3>
+            <p class="mt-1 text-sm text-slate-500">Быстрый обзор всех доступных ресторанов</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Ресторан</th>
+                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Визиты</th>
+                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Сессии</th>
+                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Добавления</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for row in analytics.restaurant_stats %}
+                    <tr class="hover:bg-slate-50/80">
+                        <td class="px-5 py-4">
+                            <div class="font-semibold text-slate-900">{{ row.name }}</div>
+                            <div class="mt-1 text-sm text-slate-500">/{{ row.slug }}</div>
+                        </td>
+                        <td class="px-5 py-4 text-sm font-medium text-slate-700">{{ row.visits }}</td>
+                        <td class="px-5 py-4 text-sm font-medium text-slate-700">{{ row.sessions }}</td>
+                        <td class="px-5 py-4 text-sm font-medium text-slate-700">{{ row.cart_adds }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-5 py-10 text-center text-sm text-slate-500">Статистика пока недоступна.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% else %}
+    <section class="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">Нет ресторанов для статистики</h3>
+        <p class="mt-2 text-sm text-slate-500">Добавьте ресторан и откройте его страницу, чтобы начать собирать аналитику.</p>
+    </section>
+    {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.DASHBOARD_DATA = {{ analytics|tojson }};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script type="module" src="/static/js/dashboard.js"></script>
 {% endblock %}

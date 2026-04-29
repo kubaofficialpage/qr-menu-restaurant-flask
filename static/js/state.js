@@ -3,6 +3,7 @@ const CART_STORAGE_KEY = "qr_menu_cart";
 const CART_TTL_MS = 1000 * 60 * 60; // 1 час
 
 export const state = {
+    restaurant: null,
     menuData: [],           // список всех блюд
     categories: [],         // список категорий
     cart: [],               // корзина (резерв)

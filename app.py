@@ -1,9 +1,10 @@
 import os
 from datetime import timedelta
 
-from flask import Flask, abort, redirect, render_template, url_for
+from flask import Flask, abort, redirect, render_template, request, session, url_for
 from api.menu import get_restaurant_by_slug, get_restaurant_by_slug_any_status, menu_api
 from api.admin import admin
+from database.analytics import get_or_create_analytics_session, record_restaurant_visit
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
@@ -31,6 +32,8 @@ def restaurant_home(restaurant_slug):
     restaurant = get_restaurant_by_slug_any_status(restaurant_slug)
     if not restaurant:
         abort(404)
+    session_id = get_or_create_analytics_session(session)
+    record_restaurant_visit(restaurant["id"], session_id, request.path)
     if not restaurant.get("is_active"):
         return render_template("restaurant_unavailable.html", restaurant=restaurant), 503
     return render_template("index.html", restaurant=restaurant)

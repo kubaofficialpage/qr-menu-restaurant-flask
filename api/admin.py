@@ -1,6 +1,7 @@
 import os
 import re
 import uuid
+from datetime import date, timedelta
 from functools import wraps
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
@@ -256,6 +257,187 @@ def get_accessible_restaurants():
     return get_user_restaurants(session["user_id"])
 
 
+def build_in_clause_params(values):
+    if not values:
+        return "", ()
+    return ", ".join(["%s"] * len(values)), tuple(values)
+
+
+def fetch_dashboard_analytics(restaurants, current_restaurant):
+    restaurant_ids = [restaurant["id"] for restaurant in restaurants]
+    if not restaurant_ids:
+        return {
+            "overview": {
+                "restaurants": 0,
+                "menu_items": 0,
+                "cart_adds": 0,
+                "visits": 0,
+                "sessions": 0,
+            },
+            "selected_restaurant": None,
+            "daily_labels": [],
+            "daily_visits": [],
+            "daily_cart_adds": [],
+            "top_dishes": [],
+            "restaurant_stats": [],
+        }
+
+    selected_restaurant = current_restaurant if current_restaurant and current_restaurant["id"] in restaurant_ids else restaurants[0]
+    in_clause, params = build_in_clause_params(restaurant_ids)
+
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute(
+        f"""
+        SELECT
+            (SELECT COUNT(*) FROM menu WHERE restaurant_id IN ({in_clause})) AS menu_items,
+            (SELECT COUNT(*) FROM menu_cart_events WHERE restaurant_id IN ({in_clause})) AS cart_adds,
+            (SELECT COUNT(*) FROM restaurant_visit_events WHERE restaurant_id IN ({in_clause})) AS visits,
+            (SELECT COUNT(DISTINCT session_id) FROM restaurant_visit_events WHERE restaurant_id IN ({in_clause})) AS sessions
+        """,
+        params + params + params + params,
+    )
+    totals = cursor.fetchone()
+
+    cursor.execute(
+        """
+        SELECT
+            COALESCE((SELECT COUNT(*) FROM menu WHERE restaurant_id = %s), 0) AS menu_items,
+            COALESCE((SELECT COUNT(*) FROM categories WHERE restaurant_id = %s), 0) AS categories,
+            COALESCE((SELECT COUNT(*) FROM menu_cart_events WHERE restaurant_id = %s), 0) AS cart_adds,
+            COALESCE((SELECT COUNT(*) FROM restaurant_visit_events WHERE restaurant_id = %s), 0) AS visits,
+            COALESCE((SELECT COUNT(DISTINCT session_id) FROM restaurant_visit_events WHERE restaurant_id = %s), 0) AS sessions
+        """,
+        (selected_restaurant["id"], selected_restaurant["id"], selected_restaurant["id"], selected_restaurant["id"], selected_restaurant["id"]),
+    )
+    selected_totals = cursor.fetchone()
+
+    start_date = date.today() - timedelta(days=13)
+
+    cursor.execute(
+        """
+        SELECT DATE(created_at) AS day, COUNT(*) AS total
+        FROM restaurant_visit_events
+        WHERE restaurant_id = %s AND created_at >= %s
+        GROUP BY DATE(created_at)
+        ORDER BY day
+        """,
+        (selected_restaurant["id"], start_date),
+    )
+    visit_rows = cursor.fetchall()
+
+    cursor.execute(
+        """
+        SELECT DATE(created_at) AS day, SUM(quantity_delta) AS total
+        FROM menu_cart_events
+        WHERE restaurant_id = %s AND created_at >= %s
+        GROUP BY DATE(created_at)
+        ORDER BY day
+        """,
+        (selected_restaurant["id"], start_date),
+    )
+    cart_rows = cursor.fetchall()
+
+    cursor.execute(
+        """
+        SELECT m.name, SUM(e.quantity_delta) AS total
+        FROM menu_cart_events e
+        JOIN menu m ON m.id = e.menu_item_id
+        WHERE e.restaurant_id = %s
+        GROUP BY e.menu_item_id, m.name
+        ORDER BY total DESC, m.name
+        LIMIT 7
+        """,
+        (selected_restaurant["id"],),
+    )
+    top_dishes = cursor.fetchall()
+
+    cursor.execute(
+        f"""
+        SELECT
+            r.id,
+            r.name,
+            r.slug,
+            COALESCE(v.visits, 0) AS visits,
+            COALESCE(v.sessions, 0) AS sessions,
+            COALESCE(c.cart_adds, 0) AS cart_adds
+        FROM restaurants r
+        LEFT JOIN (
+            SELECT restaurant_id, COUNT(*) AS visits, COUNT(DISTINCT session_id) AS sessions
+            FROM restaurant_visit_events
+            WHERE restaurant_id IN ({in_clause})
+            GROUP BY restaurant_id
+        ) v ON v.restaurant_id = r.id
+        LEFT JOIN (
+            SELECT restaurant_id, SUM(quantity_delta) AS cart_adds
+            FROM menu_cart_events
+            WHERE restaurant_id IN ({in_clause})
+            GROUP BY restaurant_id
+        ) c ON c.restaurant_id = r.id
+        WHERE r.id IN ({in_clause})
+        ORDER BY visits DESC, r.name
+        """,
+        params + params + params,
+    )
+    restaurant_stats = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    visit_map = {row["day"].isoformat(): int(row["total"]) for row in visit_rows}
+    cart_map = {row["day"].isoformat(): int(row["total"] or 0) for row in cart_rows}
+
+    daily_labels = []
+    daily_visits = []
+    daily_cart_adds = []
+    for offset in range(14):
+        current_day = start_date + timedelta(days=offset)
+        key = current_day.isoformat()
+        daily_labels.append(current_day.strftime("%d.%m"))
+        daily_visits.append(visit_map.get(key, 0))
+        daily_cart_adds.append(cart_map.get(key, 0))
+
+    return {
+        "overview": {
+            "restaurants": len(restaurants),
+            "menu_items": int(totals["menu_items"] or 0),
+            "cart_adds": int(totals["cart_adds"] or 0),
+            "visits": int(totals["visits"] or 0),
+            "sessions": int(totals["sessions"] or 0),
+        },
+        "selected_restaurant": {
+            "id": selected_restaurant["id"],
+            "name": selected_restaurant["name"],
+            "slug": selected_restaurant["slug"],
+            "logo": selected_restaurant.get("logo"),
+            "menu_items": int(selected_totals["menu_items"] or 0),
+            "categories": int(selected_totals["categories"] or 0),
+            "cart_adds": int(selected_totals["cart_adds"] or 0),
+            "visits": int(selected_totals["visits"] or 0),
+            "sessions": int(selected_totals["sessions"] or 0),
+        },
+        "daily_labels": daily_labels,
+        "daily_visits": daily_visits,
+        "daily_cart_adds": daily_cart_adds,
+        "top_dishes": [
+            {"name": row["name"], "total": int(row["total"] or 0)}
+            for row in top_dishes
+        ],
+        "restaurant_stats": [
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "slug": row["slug"],
+                "visits": int(row["visits"] or 0),
+                "sessions": int(row["sessions"] or 0),
+                "cart_adds": int(row["cart_adds"] or 0),
+            }
+            for row in restaurant_stats
+        ],
+    }
+
+
 def selected_restaurant_ids():
     restaurant_ids = []
     for restaurant_id in request.form.getlist("restaurant_ids"):
@@ -427,8 +609,13 @@ def logout():
 @login_required
 def dashboard():
     restaurants = get_accessible_restaurants()
+    analytics = fetch_dashboard_analytics(restaurants, get_current_restaurant())
 
-    return render_template("admin/dashboard.html", restaurants=restaurants)
+    return render_template(
+        "admin/dashboard.html",
+        restaurants=restaurants,
+        analytics=analytics,
+    )
 
 
 @admin.route("/select-restaurant/<int:restaurant_id>")
@@ -451,6 +638,9 @@ def select_restaurant(restaurant_id):
         abort(403)
 
     session["restaurant_id"] = restaurant_id
+    next_page = request.args.get("next")
+    if next_page == "dashboard":
+        return redirect(url_for("admin.dashboard"))
     return redirect(url_for("admin.menu"))
 
 

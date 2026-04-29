@@ -5,6 +5,7 @@ export function addItem(id) {
     if (!isMenuItemAvailable(id)) return;
 
     state.cartQty[id] = (state.cartQty[id] || 0) + 1;
+    trackCartAdd(id);
     persistCartChange(id);
 }
 
@@ -64,4 +65,28 @@ function removeUnavailableItems() {
             delete state.cartQty[id];
         }
     });
+}
+
+function trackCartAdd(id) {
+    const restaurantId = state.restaurant?.id;
+    if (!restaurantId) return;
+
+    const payload = JSON.stringify({
+        restaurantId,
+        menuItemId: Number(id),
+        quantityDelta: 1,
+    });
+
+    if (navigator.sendBeacon) {
+        const blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/analytics/cart-add", blob);
+        return;
+    }
+
+    fetch("/api/analytics/cart-add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true,
+    }).catch(() => {});
 }

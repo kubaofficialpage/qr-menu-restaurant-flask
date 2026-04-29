@@ -1,4 +1,6 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request, session
+
+from database.analytics import get_or_create_analytics_session, record_menu_cart_add
 
 from database.db import get_db
 
@@ -109,3 +111,42 @@ def get_menu_by_restaurant(restaurant_slug):
 
     menu, categories = get_restaurant_menu(restaurant["id"])
     return jsonify({"restaurant": restaurant, "menu": menu, "categories": categories})
+
+
+@menu_api.route("/api/analytics/cart-add", methods=["POST"])
+def track_cart_add():
+    payload = request.get_json(silent=True) or {}
+    restaurant_id = payload.get("restaurantId")
+    menu_item_id = payload.get("menuItemId")
+    quantity_delta = payload.get("quantityDelta", 1)
+
+    try:
+        restaurant_id = int(restaurant_id)
+        menu_item_id = int(menu_item_id)
+        quantity_delta = int(quantity_delta)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "message": "Invalid analytics payload."}), 400
+
+    if quantity_delta <= 0:
+        return jsonify({"ok": False, "message": "Quantity delta must be positive."}), 400
+
+    menu_item = fetch_menu_item_restaurant(menu_item_id)
+    if not menu_item or menu_item["restaurant_id"] != restaurant_id:
+        return jsonify({"ok": False, "message": "Menu item not found."}), 404
+
+    session_id = get_or_create_analytics_session(session)
+    record_menu_cart_add(restaurant_id, menu_item_id, session_id, quantity_delta)
+    return jsonify({"ok": True}), 201
+
+
+def fetch_menu_item_restaurant(menu_item_id):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT id, restaurant_id FROM menu WHERE id = %s",
+        (menu_item_id,),
+    )
+    item = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return item

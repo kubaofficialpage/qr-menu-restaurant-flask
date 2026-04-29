@@ -19,6 +19,7 @@ export function fetchMenuData() {
             return response.json();
         })
         .then(data => {
+            state.restaurant = data.restaurant || null;
             state.menuData.length = 0;
             state.menuData.push(...(data.menu || []));
             state.categories.length = 0;
