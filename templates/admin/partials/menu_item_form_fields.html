@@ -4,6 +4,21 @@
         <input name="name" value="{{ menu_item.name if menu_item is defined else '' }}" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
     </div>
 
+    <div class="sm:col-span-2">
+        <div class="flex items-center justify-between gap-3">
+            <label class="block text-sm font-medium text-slate-700">Описание</label>
+            <button type="button" data-generate-description class="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Сгенерировать</button>
+        </div>
+        <textarea name="description" rows="3" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">{{ menu_item.description if menu_item is defined and menu_item.description else '' }}</textarea>
+    </div>
+
+    <div class="sm:col-span-2" data-ingredients-root>
+        <label class="block text-sm font-medium text-slate-700">Состав</label>
+        <input type="hidden" name="ingredients" value="{{ menu_item.ingredients if menu_item is defined and menu_item.ingredients else '' }}" data-ingredients-hidden>
+        <div class="mt-2 flex flex-wrap gap-2" data-ingredients-tags></div>
+        <input type="text" data-ingredients-input placeholder="Введите ингредиент и нажмите Enter" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+    </div>
+
     <div>
         <label class="block text-sm font-medium text-slate-700">Цена</label>
         <input name="price" type="number" min="0" value="{{ menu_item.price if menu_item is defined else '' }}" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">

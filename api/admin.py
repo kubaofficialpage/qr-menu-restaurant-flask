@@ -9,6 +9,8 @@ from PIL import Image
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db
+from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+from services.deepseek import generate_dish_description
 from services.qr_pdf import TEMPLATE_QR_PATH, build_restaurant_qr_pdf, build_restaurant_qr_preview
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
@@ -248,6 +250,34 @@ def menu_item_name_is_available(name, restaurant_id, exclude_id=None):
         "SELECT id FROM menu WHERE restaurant_id = %s AND name = %s",
         (restaurant_id, name),
     )
+
+
+@admin.route("/api/menu/generate-description", methods=["POST"])
+@login_required
+def generate_menu_item_description():
+    restaurant = require_restaurant()
+    if not restaurant:
+        return jsonify({"ok": False, "message": "Restaurant not selected"}), 400
+
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    language = (payload.get("language") or "ru").strip() or "ru"
+
+    if not name:
+        return jsonify({"ok": False, "message": "Dish name is required"}), 400
+
+    try:
+        text = generate_dish_description(
+            api_key=DEEPSEEK_API_KEY,
+            base_url=DEEPSEEK_BASE_URL,
+            model=DEEPSEEK_MODEL,
+            dish_name=name,
+            language=language,
+        )
+    except Exception as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 500
+
+    return jsonify({"ok": True, "description": text})
 
 
 def get_accessible_restaurants():
@@ -1273,6 +1303,8 @@ def add_menu_item():
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip() or None
+        ingredients = request.form.get("ingredients", "").strip() or None
         price = request.form.get("price")
         amount = request.form.get("amount", "").strip() or None
         category_id = request.form.get("category_id")
@@ -1301,13 +1333,26 @@ def add_menu_item():
             conn = get_db()
             cursor = conn.cursor()
             try:
-                cursor.execute(
-                    """
-                    INSERT INTO menu (restaurant_id, name, price, amount, image, category_id, is_available)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (restaurant["id"], name, int(price), amount, image_path, category_id, is_available),
-                )
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO menu (restaurant_id, name, description, ingredients, price, amount, image, category_id, is_available)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (restaurant["id"], name, description, ingredients, int(price), amount, image_path, category_id, is_available),
+                    )
+                except Exception as inner_exc:
+                    message = str(inner_exc)
+                    if "Unknown column" in message and "ingredients" in message:
+                        cursor.execute(
+                            """
+                            INSERT INTO menu (restaurant_id, name, description, price, amount, image, category_id, is_available)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            """,
+                            (restaurant["id"], name, description, int(price), amount, image_path, category_id, is_available),
+                        )
+                    else:
+                        raise
                 conn.commit()
                 flash("Блюдо добавлено.", "success")
                 return redirect(url_for("admin.menu"))
@@ -1350,6 +1395,8 @@ def edit_menu_item(id):
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip() or None
+        ingredients = request.form.get("ingredients", "").strip() or None
         price = request.form.get("price")
         amount = request.form.get("amount", "").strip() or None
         category_id = request.form.get("category_id")
@@ -1383,18 +1430,36 @@ def edit_menu_item(id):
                 image_path = save_menu_image(image, restaurant)
 
             try:
-                cursor.execute(
-                    """
-                    UPDATE menu
-                    SET name = %s, price = %s, amount = %s, image = %s,
-                        category_id = %s, is_available = %s
-                    WHERE id = %s AND restaurant_id = %s
-                    """,
-                    (
-                        name, int(price), amount, image_path, category_id,
-                        is_available, id, restaurant["id"],
-                    ),
-                )
+                try:
+                    cursor.execute(
+                        """
+                        UPDATE menu
+                        SET name = %s, description = %s, ingredients = %s, price = %s, amount = %s, image = %s,
+                            category_id = %s, is_available = %s
+                        WHERE id = %s AND restaurant_id = %s
+                        """,
+                        (
+                            name, description, ingredients, int(price), amount, image_path, category_id,
+                            is_available, id, restaurant["id"],
+                        ),
+                    )
+                except Exception as inner_exc:
+                    message = str(inner_exc)
+                    if "Unknown column" in message and "ingredients" in message:
+                        cursor.execute(
+                            """
+                            UPDATE menu
+                            SET name = %s, description = %s, price = %s, amount = %s, image = %s,
+                                category_id = %s, is_available = %s
+                            WHERE id = %s AND restaurant_id = %s
+                            """,
+                            (
+                                name, description, int(price), amount, image_path, category_id,
+                                is_available, id, restaurant["id"],
+                            ),
+                        )
+                    else:
+                        raise
                 conn.commit()
                 flash("Блюдо обновлено.", "success")
                 cursor.close()

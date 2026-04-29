@@ -2,9 +2,12 @@ import os
 from datetime import timedelta
 
 from flask import Flask, abort, redirect, render_template, request, session, url_for
+from dotenv import load_dotenv
 from api.menu import get_restaurant_by_slug, get_restaurant_by_slug_any_status, menu_api
 from api.admin import admin
 from database.analytics import get_or_create_analytics_session, record_restaurant_visit
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)

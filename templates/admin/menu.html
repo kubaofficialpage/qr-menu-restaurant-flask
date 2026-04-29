@@ -207,6 +207,66 @@
     let draggedCategory = null;
     let wasCategoryDragged = false;
 
+    function normalizeIngredient(value) {
+        return (value || "").trim().replace(/\s+/g, " ");
+    }
+
+    function parseIngredients(value) {
+        return String(value || "")
+            .split(",")
+            .map((x) => normalizeIngredient(x))
+            .filter(Boolean);
+    }
+
+    function setupIngredientsRoot(root) {
+        const hidden = root.querySelector("[data-ingredients-hidden]");
+        const tagsWrap = root.querySelector("[data-ingredients-tags]");
+        const input = root.querySelector("[data-ingredients-input]");
+        if (!hidden || !tagsWrap || !input) return;
+
+        let tags = parseIngredients(hidden.value);
+
+        function sync() {
+            hidden.value = tags.join(", ");
+            tagsWrap.innerHTML = "";
+            tags.forEach((tag) => {
+                const el = document.createElement("span");
+                el.className = "inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700";
+                const text = document.createElement("span");
+                text.textContent = tag;
+
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "rounded-full px-1 text-slate-500 hover:text-slate-800";
+                btn.textContent = "×";
+                btn.addEventListener("click", () => {
+                    tags = tags.filter((t) => t !== tag);
+                    sync();
+                });
+
+                el.appendChild(text);
+                el.appendChild(btn);
+                tagsWrap.appendChild(el);
+            });
+        }
+
+        input.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            const value = normalizeIngredient(input.value);
+            if (!value) return;
+            if (!tags.includes(value)) {
+                tags.push(value);
+                sync();
+            }
+            input.value = "";
+        });
+
+        sync();
+    }
+
+    document.querySelectorAll("[data-ingredients-root]").forEach(setupIngredientsRoot);
+
     function closeCategoryActionsMenu() {
         categoryActionsMenu?.classList.add("hidden");
     }
@@ -260,6 +320,52 @@
         if (!event.target.closest("[data-category-actions-menu]")) {
             closeCategoryActionsMenu();
         }
+    });
+
+    document.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-generate-description]");
+        if (!btn) return;
+
+        const form = btn.closest("form");
+        if (!form) return;
+
+        const nameInput = form.querySelector('input[name="name"]');
+        const descriptionEl = form.querySelector('textarea[name="description"]');
+        if (!nameInput || !descriptionEl) return;
+
+        const dishName = (nameInput.value || "").trim();
+        if (!dishName) {
+            alert("Введите название блюда");
+            return;
+        }
+
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = "Генерация...";
+
+        fetch("{{ url_for('admin.generate_menu_item_description') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ name: dishName, language: "ru" }),
+        }).then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+          .then(({ ok, data }) => {
+            if (!ok || !data.ok) {
+                throw new Error(data.message || "Ошибка генерации");
+            }
+            descriptionEl.value = data.description || "";
+          })
+          .catch((error) => {
+            console.error(error);
+            alert(String(error.message || error));
+          })
+          .finally(() => {
+            btn.disabled = false;
+            btn.textContent = originalText;
+          });
     });
 
     categoryList?.addEventListener("dragstart", (event) => {

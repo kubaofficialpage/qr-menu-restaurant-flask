@@ -84,6 +84,7 @@ CREATE TABLE menu (
   category_id INT NULL,
   name VARCHAR(200) NOT NULL,
   description TEXT NULL,
+  ingredients TEXT NULL,
   price INT NOT NULL,
   amount VARCHAR(50) NULL,
   image VARCHAR(255) NULL,

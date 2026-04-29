@@ -315,6 +315,68 @@ function serializeWorkSchedule(schedule) {
     hidden.value = lines.join("; ");
 }
 
+function normalizeIngredient(value) {
+    return (value || "").trim().replace(/\s+/g, " ");
+}
+
+function parseIngredients(value) {
+    return String(value || "")
+        .split(",")
+        .map((x) => normalizeIngredient(x))
+        .filter(Boolean);
+}
+
+function setupIngredientsRoot(root) {
+    if (!root || root.dataset.ingredientsReady === "true") return;
+
+    const hidden = root.querySelector("[data-ingredients-hidden]");
+    const tagsWrap = root.querySelector("[data-ingredients-tags]");
+    const input = root.querySelector("[data-ingredients-input]");
+    if (!hidden || !tagsWrap || !input) return;
+
+    root.dataset.ingredientsReady = "true";
+    let tags = parseIngredients(hidden.value);
+
+    function sync() {
+        hidden.value = tags.join(", ");
+        tagsWrap.innerHTML = "";
+        tags.forEach((tag) => {
+            const el = document.createElement("span");
+            el.className = "inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700";
+
+            const text = document.createElement("span");
+            text.textContent = tag;
+
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "rounded-full px-1 text-slate-500 hover:text-slate-800";
+            btn.textContent = "×";
+            btn.addEventListener("click", () => {
+                tags = tags.filter((t) => t !== tag);
+                sync();
+            });
+
+            el.appendChild(text);
+            el.appendChild(btn);
+            tagsWrap.appendChild(el);
+        });
+    }
+
+    input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        const value = normalizeIngredient(input.value);
+        if (!value) return;
+        if (!tags.includes(value)) {
+            tags.push(value);
+            sync();
+        }
+        input.value = "";
+    });
+
+    sync();
+}
+
 function initFormEnhancements(root = document) {
     root.querySelectorAll("[data-phone-mask]").forEach((input) => {
         input.value = formatKgPhone(input.value);
@@ -334,6 +396,8 @@ function initFormEnhancements(root = document) {
         input.dataset.slugReady = "true";
         updateSlugPublicLink(input);
     });
+
+    root.querySelectorAll("[data-ingredients-root]").forEach(setupIngredientsRoot);
 }
 
 document.addEventListener("click", (event) => {
