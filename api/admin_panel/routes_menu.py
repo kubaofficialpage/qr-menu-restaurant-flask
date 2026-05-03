@@ -33,24 +33,45 @@ def categories():
 def add_category():
     restaurant = require_restaurant()
     if not restaurant:
+        if request.accept_mimetypes.best == "application/json":
+            return jsonify({"ok": False, "message": "Restaurant is required."}), 400
         return redirect(url_for("admin.dashboard"))
 
     name = request.form.get("name", "").strip()
-    if name:
-        try:
-            with session_scope() as db_session:
-                max_sort = db_session.execute(
-                    select(func.max(Category.sort_order)).where(Category.restaurant_id == restaurant["id"])
-                ).scalar_one()
-                sort_order = int(max_sort if max_sort is not None else -1) + 1
-                db_session.add(Category(restaurant_id=restaurant["id"], name=name, sort_order=sort_order))
-            flash("Категория добавлена.", "success")
-        except Exception as exc:
-            message = str(exc)
+    wants_json = request.accept_mimetypes.best == "application/json"
+
+    if not name:
+        if wants_json:
+            return jsonify({"ok": False, "message": "Category name is required."}), 400
+        return redirect(url_for("admin.menu"))
+
+    try:
+        created_category_id = None
+        with session_scope() as db_session:
+            max_sort = db_session.execute(
+                select(func.max(Category.sort_order)).where(Category.restaurant_id == restaurant["id"])
+            ).scalar_one()
+            sort_order = int(max_sort if max_sort is not None else -1) + 1
+            category = Category(restaurant_id=restaurant["id"], name=name, sort_order=sort_order)
+            db_session.add(category)
+            db_session.flush()
+            created_category_id = category.id
+
+        if wants_json:
+            return jsonify({"ok": True, "category": {"id": created_category_id, "name": name}})
+
+        flash("Категория добавлена.", "success")
+    except Exception as exc:
+        message = str(exc)
+        if wants_json:
             if "1062" in message or "Duplicate entry" in message:
-                flash("Категория с таким названием уже существует.", "error")
-            else:
-                flash(f"Не удалось добавить категорию: {exc}", "error")
+                return jsonify({"ok": False, "message": "Категория с таким названием уже существует."}), 409
+            return jsonify({"ok": False, "message": f"Не удалось добавить категорию: {exc}"}), 500
+
+        if "1062" in message or "Duplicate entry" in message:
+            flash("Категория с таким названием уже существует.", "error")
+        else:
+            flash(f"Не удалось добавить категорию: {exc}", "error")
 
     return redirect(url_for("admin.menu"))
 

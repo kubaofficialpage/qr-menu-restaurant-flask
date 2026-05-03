@@ -118,6 +118,92 @@ function templateHtml(id) {
     return template ? template.innerHTML.trim() : "";
 }
 
+function closeCategoryAddDropdown(root) {
+    if (!root) return;
+    const dropdown = root.querySelector("[data-admin-category-add-dropdown]");
+    const input = root.querySelector("[data-admin-category-add-input]");
+    dropdown?.classList.add("hidden");
+    if (input) input.value = "";
+}
+
+function openCategoryAddDropdown(root) {
+    if (!root) return;
+    const dropdown = root.querySelector("[data-admin-category-add-dropdown]");
+    const input = root.querySelector("[data-admin-category-add-input]");
+    if (!dropdown || !input) return;
+    dropdown.classList.remove("hidden");
+    input.focus();
+}
+
+async function submitCategoryAdd(root) {
+    const toggle = root?.querySelector("[data-admin-category-add-toggle]");
+    const input = root?.querySelector("[data-admin-category-add-input]");
+    const submit = root?.querySelector("[data-admin-category-add-submit]");
+    const url = toggle?.dataset?.categoriesAddUrl;
+    const name = String(input?.value || "").trim();
+
+    if (!url) return;
+    if (!name) {
+        showToast("Введите название категории.", "error");
+        input?.focus();
+        return;
+    }
+
+    const form = root.closest("form") || document;
+    const select = form.querySelector("select[name='category_id'][data-category-select]");
+    if (!select) {
+        showToast("Не найден список категорий.", "error");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.set("name", name);
+
+    const prevLabel = submit?.textContent;
+    if (submit) {
+        submit.disabled = true;
+        submit.textContent = "Создание...";
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { Accept: "application/json" },
+            credentials: "same-origin",
+            body: formData,
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data || !data.ok || !data.category) {
+            throw new Error(data?.message || "Не удалось добавить категорию");
+        }
+
+        const id = String(data.category.id);
+        const label = String(data.category.name);
+        const existingOption = [...select.options].find((opt) => String(opt.value) === id);
+        if (!existingOption) {
+            const option = document.createElement("option");
+            option.value = id;
+            option.textContent = label;
+            select.appendChild(option);
+        }
+
+        select.disabled = false;
+        select.value = id;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        closeCategoryAddDropdown(root);
+        showToast("Категория добавлена.", "success");
+    } catch (error) {
+        console.error(error);
+        showToast(String(error.message || error), "error");
+    } finally {
+        if (submit) {
+            submit.disabled = false;
+            submit.textContent = prevLabel || "Создать";
+        }
+    }
+}
+
 function filterRestaurantPicker(input) {
     const picker = input.closest("[data-restaurant-picker]");
     if (!picker) return;
@@ -432,6 +518,41 @@ document.addEventListener("click", (event) => {
         return;
     }
 
+    const toggleCategoryAdd = event.target.closest("[data-admin-category-add-toggle]");
+    if (toggleCategoryAdd) {
+        const root = toggleCategoryAdd.closest("[data-admin-category-add-root]");
+        const dropdown = root?.querySelector("[data-admin-category-add-dropdown]");
+        if (!root || !dropdown) return;
+        if (dropdown.classList.contains("hidden")) {
+            openCategoryAddDropdown(root);
+        } else {
+            closeCategoryAddDropdown(root);
+        }
+        return;
+    }
+
+    const submitCategory = event.target.closest("[data-admin-category-add-submit]");
+    if (submitCategory) {
+        const root = submitCategory.closest("[data-admin-category-add-root]");
+        if (root) submitCategoryAdd(root);
+        return;
+    }
+
+    const cancelCategory = event.target.closest("[data-admin-category-add-cancel]");
+    if (cancelCategory) {
+        const root = cancelCategory.closest("[data-admin-category-add-root]");
+        closeCategoryAddDropdown(root);
+        return;
+    }
+
+    document.querySelectorAll("[data-admin-category-add-root]").forEach((root) => {
+        const dropdown = root.querySelector("[data-admin-category-add-dropdown]");
+        if (!dropdown || dropdown.classList.contains("hidden")) return;
+        if (!root.contains(event.target)) {
+            closeCategoryAddDropdown(root);
+        }
+    });
+
     const deleteButton = event.target.closest("[data-delete-action]");
     if (deleteButton) {
         const title = deleteButton.dataset.modalTitle || "Подтверждение удаления";
@@ -492,6 +613,25 @@ document.addEventListener("change", (event) => {
     if (schedule) {
         schedule.dataset.dirty = "true";
         serializeWorkSchedule(schedule);
+    }
+});
+
+document.addEventListener("keydown", (event) => {
+    const input = event.target.closest("[data-admin-category-add-input]");
+    if (!input) return;
+    const root = input.closest("[data-admin-category-add-root]");
+    if (!root) return;
+
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeCategoryAddDropdown(root);
+        root.querySelector("[data-admin-category-add-toggle]")?.focus();
+        return;
+    }
+
+    if (event.key === "Enter") {
+        event.preventDefault();
+        submitCategoryAdd(root);
     }
 });
 
