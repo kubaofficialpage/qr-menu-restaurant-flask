@@ -61,23 +61,32 @@ function renderItemModalContent(item) {
     const description = String(item.description || "").trim();
 
     return `
-        <div class="relative bg-gray-50 rounded-xl overflow-hidden mb-3">
+        <div class="relative overflow-hidden rounded-t-[28px] bg-gray-50">
             ${renderMenuImageMarkup({
                 src: imageSrc,
                 alt: item.name,
-                placeholderClass: "w-full h-56 object-contain p-10",
+                placeholderClass: "h-64 w-full object-contain p-10",
                 spinnerClass: "image-spinner",
-                imageClass: "menu-image absolute inset-0 w-full h-56 object-cover rounded-xl opacity-0",
+                imageClass: "menu-image absolute inset-0 h-64 w-full object-cover opacity-0",
                 dataAttributeName: "data-modal-image-src",
             })}
+            <button
+                type="button"
+                data-action="closeItemModal"
+                class="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-slate-900 shadow-sm backdrop-blur hover:bg-white"
+                aria-label="Закрыть">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
             <div data-cart-control-id="${escapeHtml(item.id)}" class="absolute bottom-3 right-3">
                 ${renderCartButton(item.id)}
             </div>
         </div>
-        <h2 id="itemModalTitle" class="text-xl font-bold mb-1">${escapeHtml(item.name)}</h2>
-        <p class="text-gray-500 mb-3">${escapeHtml(item.amount)}</p>
-        <div class="text-lg font-bold mb-2">${escapeHtml(item.price)} c</div>
-        ${description ? `<div class="text-sm text-gray-700 whitespace-pre-line">${escapeHtml(description)}</div>` : ""}
-        ${renderIngredientsTags(item.ingredients)}
+        <div class="px-4 pb-5 pt-4">
+            <h2 id="itemModalTitle" class="mb-1 text-xl font-bold text-slate-900">${escapeHtml(item.name)}</h2>
+            <p class="mb-3 text-gray-500">${escapeHtml(item.amount)}</p>
+            <div class="mb-2 text-lg font-bold text-slate-900">${escapeHtml(item.price)} c</div>
+            ${description ? `<div class="text-sm text-gray-700 whitespace-pre-line">${escapeHtml(description)}</div>` : ""}
+            ${renderIngredientsTags(item.ingredients)}
+        </div>
     `;
 }
