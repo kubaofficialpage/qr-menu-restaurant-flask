@@ -109,7 +109,7 @@ export function renderMenuSkeleton(count = 12) {
         const nameW = 72 + Math.floor(Math.random() * 72);
         const amountW = 52 + Math.floor(Math.random() * 90);
         return `
-            <article data-menu-skeleton class="border border-slate-200 bg-white p-0">
+            <article data-menu-skeleton class="bg-white p-0">
                 <div class="bg-slate-50 rounded-[18px] overflow-hidden">
                     <div class="w-full h-40 bg-gray-200 animate-pulse"></div>
                 </div>
@@ -206,7 +206,7 @@ function renderMenuItemHtml(item, index = 0) {
     const delay = getMenuItemDelay(index);
 
     return `
-        <article class="menu-item is-entering border border-slate-200 bg-white p-0 ${isAvailable ? "cursor-pointer" : "opacity-70 cursor-not-allowed"}" style="--menu-item-delay:${delay}ms" data-menu-item-id="${itemId}" ${isAvailable ? `data-action="openItemModal" data-param="${itemId}"` : 'aria-disabled="true"'}>
+        <article class="menu-item is-entering bg-white p-0 ${isAvailable ? "cursor-pointer" : "opacity-70 cursor-not-allowed"}" style="--menu-item-delay:${delay}ms" data-menu-item-id="${itemId}" ${isAvailable ? `data-action="openItemModal" data-param="${itemId}"` : 'aria-disabled="true"'}>
             <div class="img-box relative overflow-hidden rounded-[20px] bg-slate-50">
                 ${renderMenuImageMarkup({
                     src: imageSrc,

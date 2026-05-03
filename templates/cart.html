@@ -14,9 +14,9 @@
 <link rel="stylesheet" href="/static/css/app.css">
 </head>
 
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-white min-h-screen text-slate-900">
 <div class="cart-page min-h-screen pb-28">
-    <header class="cart-page-top sticky top-0 z-20 bg-gray-100/95 backdrop-blur px-4 py-3">
+    <header class="cart-page-top sticky top-0 z-20 bg-white/95 backdrop-blur px-4 py-3">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <a href="{% if restaurant %}/{{ restaurant.slug }}{% else %}/{% endif %}" class="w-10 h-10 bg-white border rounded-xl flex items-center justify-center" aria-label="Назад">
                 <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
@@ -50,7 +50,7 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4">
-        <section id="cartPageItems" data-cart-tour="items" class="cart-page-list mt-3 flex flex-col gap-1"></section>
+        <section id="cartPageItems" data-cart-tour="items" class="cart-page-list mt-3 flex flex-col gap-3"></section>
 
         <section data-cart-tour="menu" class="mt-5">
             <h2 class="text-xl font-bold mb-3" data-i18n="similar">Похожее</h2>

@@ -51,13 +51,13 @@ function renderCartPageSkeleton() {
         itemsContainer.dataset.skeleton = "true";
         itemsContainer.innerHTML = Array.from({ length: 3 }).map(() => {
             return `
-                <div class="py-3 flex items-center gap-3">
-                    <div class="w-16 h-16 shrink-0 bg-gray-200 rounded-xl animate-pulse"></div>
+                <div class="grid grid-cols-[72px_1fr_auto] items-center gap-3 bg-white">
+                    <div class="h-[72px] w-[72px] shrink-0 rounded-[18px] bg-gray-200 animate-pulse"></div>
                     <div class="flex-1 space-y-2">
                         <div class="h-4 w-40 bg-gray-200 rounded animate-pulse"></div>
                         <div class="h-3 w-56 bg-gray-200 rounded animate-pulse"></div>
                     </div>
-                    <div class="w-24 h-8 bg-gray-200 rounded-xl animate-pulse"></div>
+                    <div class="h-8 w-24 rounded-xl bg-gray-200 animate-pulse"></div>
                 </div>
             `.trim();
         }).join("");
@@ -68,11 +68,11 @@ function renderCartPageSkeleton() {
         menuContainer.dataset.skeleton = "true";
         menuContainer.innerHTML = Array.from({ length: 6 }).map(() => {
             return `
-                <article class="bg-white rounded-[24px] p-1 shadow">
-                    <div class="bg-gray-50 rounded-[16px] overflow-hidden">
+                <article class="bg-white p-0">
+                    <div class="bg-slate-50 rounded-[18px] overflow-hidden">
                         <div class="w-full h-40 bg-gray-200 animate-pulse"></div>
                     </div>
-                    <div class="p-3 space-y-2">
+                    <div class="px-1 pt-2 space-y-2">
                         <div class="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
                         <div class="h-3 w-24 bg-gray-200 rounded animate-pulse"></div>
                     </div>
@@ -270,16 +270,16 @@ function renderCartListItem(item) {
     const amount = formatAmount(item.amount);
 
     return `
-        <article data-cart-list-item-id="${escapeHtml(item.id)}" class="cart-list-item py-3 flex items-center gap-3">
-            <div class="relative w-16 h-16 shrink-0 bg-gray-50 rounded-xl overflow-hidden">
-                <img src="${IMAGE_PLACEHOLDER}" alt="" class="w-full h-full object-contain p-2" />
+        <article data-cart-list-item-id="${escapeHtml(item.id)}" class="cart-list-item grid grid-cols-[72px_1fr_auto] items-center gap-3 bg-white">
+            <div class="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[20px] bg-slate-50">
+                <img src="${IMAGE_PLACEHOLDER}" alt="" class="h-full w-full object-contain p-3" />
                 <div class="image-spinner image-spinner-sm"></div>
                 <img
                     src="${escapeHtml(imageSrc)}"
                     alt="${escapeHtml(item.name)}"
                     loading="lazy"
                     decoding="async"
-                    class="menu-image absolute inset-0 w-full h-full object-cover opacity-0"
+                    class="menu-image absolute inset-0 h-full w-full object-cover opacity-0"
                 />
             </div>
             <div class="min-w-0 flex-1 self-stretch flex flex-col justify-center">
@@ -290,7 +290,7 @@ function renderCartListItem(item) {
                     <span class="text-gray-500">${escapeHtml(item.price)} c${amount}</span>
                 </div>
             </div>
-            <div class="cart-list-counter shrink-0 flex items-center rounded-xl bg-gray-50">
+            <div class="cart-list-counter shrink-0 flex items-center rounded-xl bg-slate-50">
                 <button data-cart-page-action="remove" data-param="${item.id}" class="w-9 h-8 flex items-center justify-center text-lg leading-none">-</button>
                 <span data-cart-qty class="w-8 text-center text-sm font-semibold">${item.qty}</span>
                 <button data-cart-page-action="add" data-param="${item.id}" class="w-9 h-8 flex items-center justify-center text-lg leading-none">+</button>
@@ -313,8 +313,8 @@ function renderMenuCard(item, index = 0) {
     const delay = Math.min(index * MENU_ITEM_STAGGER_MS, MENU_ITEM_MAX_DELAY_MS);
 
     return `
-        <article class="cart-product-card menu-item is-entering bg-white rounded-[24px] p-1 shadow ${isAvailable ? "" : "opacity-70"}" style="--menu-item-delay:${delay}ms">
-            <div class="img-box relative bg-gray-50 rounded-[16px] overflow-hidden">
+        <article class="cart-product-card menu-item is-entering bg-white p-0 ${isAvailable ? "" : "opacity-70"}" style="--menu-item-delay:${delay}ms">
+            <div class="img-box relative overflow-hidden rounded-[20px] bg-slate-50">
                 <img src="${IMAGE_PLACEHOLDER}" alt="" class="image-placeholder w-full h-40 object-contain p-8" />
                 <div class="image-spinner"></div>
                 <img
@@ -322,16 +322,16 @@ function renderMenuCard(item, index = 0) {
                     alt="${escapeHtml(item.name)}"
                     loading="lazy"
                     decoding="async"
-                    class="menu-image absolute inset-0 w-full h-40 object-cover rounded-[16px] p-1 opacity-0"
+                    class="menu-image absolute inset-0 h-40 w-full object-cover opacity-0"
                 />
                 ${isAvailable ? "" : renderUnavailableOverlay()}
                 <div data-cart-page-control-id="${escapeHtml(item.id)}" class="absolute bottom-2 right-2">
                     ${renderCartPageButton(item.id)}
                 </div>
             </div>
-            <div class="p-3">
-                <h2 class="text-lg font-bold">${escapeHtml(item.price)} c</h2>
-                <h4 class="text-md">${escapeHtml(formatShortText(item.name, 15))}</h4>
+            <div class="px-1 pt-2 pb-1">
+                <h2 class="text-lg font-bold leading-none text-slate-900">${escapeHtml(item.price)} c</h2>
+                <h4 class="mt-1 text-md text-slate-900">${escapeHtml(formatShortText(item.name, 15))}</h4>
                 <h6 class="text-gray-500 text-sm">${escapeHtml(item.amount)}</h6>
             </div>
         </article>

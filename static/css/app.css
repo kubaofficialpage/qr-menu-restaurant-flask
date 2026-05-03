@@ -164,7 +164,7 @@ font-size:14px;
 
 /* Cart page */
 .cart-page {
-background:var(--color-page);
+background:#fff;
 }
 
 .cart-page-top {
