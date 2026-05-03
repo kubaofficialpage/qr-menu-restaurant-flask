@@ -109,11 +109,11 @@ export function renderMenuSkeleton(count = 12) {
         const nameW = 72 + Math.floor(Math.random() * 72);
         const amountW = 52 + Math.floor(Math.random() * 90);
         return `
-            <article data-menu-skeleton class="bg-white rounded-[24px] p-1 shadow">
-                <div class="bg-gray-50 rounded-[16px] overflow-hidden">
+            <article data-menu-skeleton class="border border-slate-200 bg-white p-0">
+                <div class="bg-slate-50 rounded-[18px] overflow-hidden">
                     <div class="w-full h-40 bg-gray-200 animate-pulse"></div>
                 </div>
-                <div class="p-3 space-y-2">
+                <div class="px-1 pt-2 space-y-2">
                     <div class="h-5 w-16 bg-gray-200 rounded animate-pulse"></div>
                     <div class="h-4 bg-gray-200 rounded animate-pulse" style="width:${nameW}px"></div>
                     <div class="h-3 bg-gray-200 rounded animate-pulse" style="width:${amountW}px"></div>
@@ -206,14 +206,14 @@ function renderMenuItemHtml(item, index = 0) {
     const delay = getMenuItemDelay(index);
 
     return `
-        <article class="menu-item is-entering bg-white rounded-[24px] p-1 shadow ${isAvailable ? "cursor-pointer" : "opacity-70 cursor-not-allowed"}" style="--menu-item-delay:${delay}ms" data-menu-item-id="${itemId}" ${isAvailable ? `data-action="openItemModal" data-param="${itemId}"` : 'aria-disabled="true"'}>
-            <div class="img-box relative bg-gray-50 rounded-[16px] overflow-hidden">
+        <article class="menu-item is-entering border border-slate-200 bg-white p-0 ${isAvailable ? "cursor-pointer" : "opacity-70 cursor-not-allowed"}" style="--menu-item-delay:${delay}ms" data-menu-item-id="${itemId}" ${isAvailable ? `data-action="openItemModal" data-param="${itemId}"` : 'aria-disabled="true"'}>
+            <div class="img-box relative overflow-hidden rounded-[20px] bg-slate-50">
                 ${renderMenuImageMarkup({
                     src: imageSrc,
                     alt: item.name,
                     placeholderClass: "image-placeholder w-full h-40 object-contain p-8",
                     spinnerClass: "image-spinner",
-                    imageClass: "menu-image absolute inset-0 w-full h-40 object-cover rounded-[16px] p-1 opacity-0",
+                    imageClass: "menu-image absolute inset-0 h-40 w-full object-cover opacity-0",
                     dataAttributeName: "data-menu-image-src",
                 })}
                 ${isAvailable ? "" : renderUnavailableOverlay()}
@@ -221,9 +221,9 @@ function renderMenuItemHtml(item, index = 0) {
                     ${renderCartButton(item.id)}
                 </div>
             </div>
-            <div class="p-3">
-                <h2 data-menu-price class="text-lg font-bold">${escapeHtml(item.price)} c</h2>
-                <h3 data-menu-name class="text-md">${escapeHtml(formatShortText(item.name, 15, ".."))}</h3>
+            <div class="px-1 pt-2 pb-1">
+                <h2 data-menu-price class="text-lg font-bold leading-none text-slate-900">${escapeHtml(item.price)} c</h2>
+                <h3 data-menu-name class="mt-1 text-md text-slate-900">${escapeHtml(formatShortText(item.name, 15, ".."))}</h3>
                 <p data-menu-amount class="text-gray-500 text-sm">${escapeHtml(item.amount)}</p>
             </div>
         </article>

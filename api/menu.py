@@ -62,6 +62,23 @@ def get_default_restaurant():
     return restaurant
 
 
+def get_active_restaurants():
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT id, name, slug, logo, address, description
+        FROM restaurants
+        WHERE is_active = TRUE
+        ORDER BY name
+        """
+    )
+    restaurants = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return restaurants
+
+
 def get_restaurant_menu(restaurant_id):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)

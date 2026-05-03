@@ -143,33 +143,65 @@
                     </div>
                 </div>
 
+                {% if restaurants %}
                 <div class="mt-8 overflow-hidden rounded-3xl border border-white/10 bg-neutral-950/40">
                     <div id="partnersTrack" class="flex w-max gap-4 px-4 py-6 will-change-transform">
-                        <div class="partner-chip">Restaurant A</div>
-                        <div class="partner-chip">Restaurant B</div>
-                        <div class="partner-chip">Restaurant C</div>
-                        <div class="partner-chip">Coffee D</div>
-                        <div class="partner-chip">Bistro E</div>
-                        <div class="partner-chip">Sushi F</div>
-                        <div class="partner-chip">Restaurant A</div>
-                        <div class="partner-chip">Restaurant B</div>
-                        <div class="partner-chip">Restaurant C</div>
-                        <div class="partner-chip">Coffee D</div>
-                        <div class="partner-chip">Bistro E</div>
-                        <div class="partner-chip">Sushi F</div>
+                        {% for restaurant in restaurants %}
+                        <a href="/{{ restaurant.slug }}" class="partner-chip">
+                            <span class="partner-logo">
+                                {% if restaurant.logo %}
+                                <img
+                                    src="/static/resource/{{ restaurant.logo }}"
+                                    alt="{{ restaurant.name }}"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                                {% else %}
+                                <span class="partner-logo-fallback">{{ restaurant.name[:1] }}</span>
+                                {% endif %}
+                            </span>
+                            <span class="partner-name">{{ restaurant.name }}</span>
+                        </a>
+                        {% endfor %}
+                        {% for restaurant in restaurants %}
+                        <a href="/{{ restaurant.slug }}" class="partner-chip" aria-hidden="true" tabindex="-1">
+                            <span class="partner-logo">
+                                {% if restaurant.logo %}
+                                <img
+                                    src="/static/resource/{{ restaurant.logo }}"
+                                    alt="{{ restaurant.name }}"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                                {% else %}
+                                <span class="partner-logo-fallback">{{ restaurant.name[:1] }}</span>
+                                {% endif %}
+                            </span>
+                            <span class="partner-name">{{ restaurant.name }}</span>
+                        </a>
+                        {% endfor %}
                     </div>
                 </div>
+                {% else %}
+                <div class="mt-8 rounded-3xl border border-dashed border-white/15 bg-white/5 px-6 py-10 text-center text-white/65">
+                    Список партнёров появится после добавления активных ресторанов в админке.
+                </div>
+                {% endif %}
             </div>
         </section>
 
         <section id="pricing" class="mx-auto max-w-6xl px-6 py-16 sm:py-20">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h2 class="text-2xl font-bold sm:text-3xl">Прайс-лист</h2>
-                    <p class="mt-2 max-w-2xl text-white/70">
-                        До <span class="font-semibold text-white">31 августа</span> подключение
-                        <span class="font-semibold text-emerald-200">бесплатно</span>.
-                    </p>
+                    <p class="mt-2 max-w-2xl text-white/70">Понятные тарифы без скрытых платежей. Выбирайте пакет под свой формат заведения и запускайте QR-меню без лишних затрат на старт.</p>
+                </div>
+                <div class="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-5 py-4 text-sm text-emerald-100 shadow-[0_20px_50px_rgba(16,185,129,0.12)]">
+                    <div class="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200/90">Акция</div>
+                    <div class="mt-1 text-2xl font-extrabold text-white">Подключение 0 сом</div>
+                    <div class="mt-1 text-emerald-100/80">До 31 августа настройка и запуск бесплатно</div>
                 </div>
             </div>
 
@@ -177,18 +209,19 @@
                 <div class="rounded-3xl border border-white/10 bg-white/5 p-6">
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-bold">Базовый</h3>
-                        <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">200 c / месяц</span>
+                        <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">200 сом / месяц</span>
                     </div>
-                    <p class="mt-3 text-sm text-white/70">Для небольших заведений и старта.</p>
-                    <ul class="mt-5 space-y-2 text-sm text-white/75">
-                        <li>1 ресторан</li>
-                        <li>Меню, фото, категории</li>
-                        <li>KY / RU / EN</li>
+                    <p class="mt-3 text-sm text-white/70">Для кофеен, фастфуда и небольших заведений, которым нужен быстрый и недорогой старт.</p>
+                    <ul class="mt-5 space-y-3 text-sm text-white/80">
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-emerald-300">✓</span><span>1 ресторан в системе</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-emerald-300">✓</span><span>Меню, фото, категории и цены</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-emerald-300">✓</span><span>Стоп-лист и включение/выключение блюд</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-emerald-300">✓</span><span>RU / KG / EN</span></li>
                     </ul>
                     <div class="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-                        Годовой пакет: бесплатно
+                        Сегодня подключение: <span class="font-extrabold text-white">0 сом</span>
                     </div>
-                    <a href="/admin" class="mt-6 block rounded-2xl bg-white px-5 py-3 text-center text-sm font-bold text-neutral-950 hover:bg-white/90">Подключить</a>
+                    <a href="/admin" class="mt-6 block rounded-2xl bg-white px-5 py-3 text-center text-sm font-bold text-neutral-950 hover:bg-white/90">Выбрать Базовый</a>
                 </div>
 
                 <div class="rounded-3xl border border-emerald-400/30 bg-gradient-to-b from-emerald-400/15 to-white/5 p-6 ring-1 ring-emerald-400/20">
@@ -197,19 +230,20 @@
                         <span class="rounded-full bg-emerald-400 px-3 py-1 text-xs font-bold text-neutral-950">Лучший выбор</span>
                     </div>
                     <div class="mt-3 flex items-baseline gap-2">
-                        <div class="text-3xl font-extrabold">500 c</div>
+                        <div class="text-3xl font-extrabold">500 сом</div>
                         <div class="text-sm text-white/70">/ месяц</div>
                     </div>
-                    <p class="mt-3 text-sm text-white/70">Для активных ресторанов и роста продаж.</p>
-                    <ul class="mt-5 space-y-2 text-sm text-white/75">
-                        <li>Всё из “Базовый”</li>
-                        <li>Приоритетная поддержка</li>
-                        <li>Гибкая настройка</li>
+                    <p class="mt-3 text-sm text-white/70">Для ресторанов, которые хотят выглядеть сильнее, быстрее обновлять меню и получать поддержку без ожидания.</p>
+                    <ul class="mt-5 space-y-3 text-sm text-white/85">
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-emerald-200">✓</span><span>Всё из тарифа Базовый</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-emerald-200">✓</span><span>Приоритетная поддержка</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-emerald-200">✓</span><span>Более гибкая настройка под бренд</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-emerald-200">✓</span><span>Оптимально для активного зала и роста продаж</span></li>
                     </ul>
                     <div class="mt-6 rounded-2xl border border-white/10 bg-neutral-950/40 px-4 py-3 text-sm text-white/75">
-                        Регистрация до 31 августа — годовой пакет бесплатно
+                        Запуск сейчас: <span class="font-extrabold text-emerald-200">0 сом</span> вместо отдельной оплаты за подключение
                     </div>
-                    <a href="/admin" class="mt-6 block rounded-2xl bg-emerald-400 px-5 py-3 text-center text-sm font-bold text-neutral-950 hover:bg-emerald-300">Подключить</a>
+                    <a href="/admin" class="mt-6 block rounded-2xl bg-emerald-400 px-5 py-3 text-center text-sm font-bold text-neutral-950 hover:bg-emerald-300">Выбрать Про</a>
                 </div>
 
                 <div class="rounded-3xl border border-white/10 bg-white/5 p-6 opacity-90">
@@ -217,12 +251,16 @@
                         <h3 class="text-lg font-bold">Макс</h3>
                         <span class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">Скоро</span>
                     </div>
-                    <p class="mt-3 text-sm text-white/70">Максимум функций для сетей и франшиз.</p>
-                    <ul class="mt-5 space-y-2 text-sm text-white/75">
-                        <li>Сеть ресторанов</li>
-                        <li>Расширенная аналитика</li>
-                        <li>Интеграции</li>
+                    <p class="mt-3 text-sm text-white/70">Для сетей, франшиз и владельцев нескольких точек, которым нужен централизованный контроль.</p>
+                    <ul class="mt-5 space-y-3 text-sm text-white/80">
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-white/80">✓</span><span>Несколько ресторанов в одной системе</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-white/80">✓</span><span>Расширенная аналитика по точкам</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-white/80">✓</span><span>Индивидуальные интеграции</span></li>
+                        <li class="flex items-start gap-3"><span class="mt-0.5 text-white/80">✓</span><span>Условия под ваш формат бизнеса</span></li>
                     </ul>
+                    <div class="mt-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/65">
+                        Оставьте заявку заранее и получите специальные условия на запуск.
+                    </div>
                     <a href="#" class="mt-6 block cursor-not-allowed rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-center text-sm font-bold text-white/60">Скоро</a>
                 </div>
             </div>
@@ -266,10 +304,11 @@
             display:flex;
             align-items:center;
             justify-content:center;
-            height:56px;
-            min-width:160px;
-            padding:0 18px;
-            border-radius:18px;
+            gap:14px;
+            height:72px;
+            min-width:220px;
+            padding:0 20px 0 10px;
+            border-radius:999px;
             background:rgba(255,255,255,0.06);
             border:1px solid rgba(255,255,255,0.10);
             color:rgba(255,255,255,0.85);
@@ -277,6 +316,27 @@
             letter-spacing:0.2px;
             user-select:none;
             -webkit-user-select:none;
+            text-decoration:none;
+        }
+        .partner-logo{
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            width:52px;
+            height:52px;
+            overflow:hidden;
+            border-radius:999px;
+            border:1px solid rgba(255,255,255,0.14);
+            background:rgba(255,255,255,0.10);
+            flex-shrink:0;
+        }
+        .partner-logo-fallback{
+            font-size:20px;
+            font-weight:800;
+            color:rgba(255,255,255,0.78);
+        }
+        .partner-name{
+            white-space:nowrap;
         }
     </style>
 

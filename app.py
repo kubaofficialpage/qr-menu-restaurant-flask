@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from flask import Flask, abort, redirect, render_template, request, session, url_for
 from dotenv import load_dotenv
-from api.menu import get_restaurant_by_slug, get_restaurant_by_slug_any_status, menu_api
+from api.menu import get_active_restaurants, get_restaurant_by_slug, get_restaurant_by_slug_any_status, menu_api
 from api.admin import admin
 from database.analytics import get_or_create_analytics_session, record_restaurant_visit
 
@@ -24,7 +24,8 @@ app.register_blueprint(admin)
 
 @app.route("/")
 def home():
-    return render_template("landing.html")
+    restaurants = get_active_restaurants()
+    return render_template("landing.html", restaurants=restaurants)
 
 @app.route("/cart")
 def cart():
