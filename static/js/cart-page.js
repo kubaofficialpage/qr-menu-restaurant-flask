@@ -158,11 +158,7 @@ function renderCartItems(items) {
     }
 
     if (items.length === 0 && !container.querySelector("[data-cart-list-item-id]")) {
-        container.innerHTML = `
-            <div data-cart-empty class="text-center text-gray-500 py-8">
-                ${t("cart_empty")}
-            </div>
-        `;
+        container.innerHTML = renderCartEmptyStateMarkup();
         return;
     }
 
@@ -217,11 +213,7 @@ function animateCartListItemExit(row, container) {
 function showCartEmptyState(container) {
     if (container.querySelector("[data-cart-empty]")) return;
 
-    container.innerHTML = `
-        <div data-cart-empty class="text-center text-gray-500 py-8">
-            ${t("cart_empty")}
-        </div>
-    `;
+    container.innerHTML = renderCartEmptyStateMarkup();
 }
 
 function renderMenuSuggestions() {
@@ -426,6 +418,26 @@ function createElementFromHtml(html) {
     const template = document.createElement("template");
     template.innerHTML = html.trim();
     return template.content.firstElementChild;
+}
+
+function renderCartEmptyStateMarkup() {
+    return `
+        <div data-cart-empty class="flex min-h-[320px] flex-col items-center justify-center px-6 py-10 text-center">
+            <img
+                src="/static/resource/img/empty-cart.png"
+                alt=""
+                class="h-44 w-44 object-contain opacity-95"
+                loading="lazy"
+                decoding="async"
+            />
+            <div class="mt-5 text-lg font-semibold text-slate-900">
+                ${t("cart_empty")}
+            </div>
+            <div class="mt-2 max-w-sm text-sm text-slate-500">
+                Выберите блюда из меню, и они появятся здесь.
+            </div>
+        </div>
+    `;
 }
 
 function maybeStartCartTour() {
