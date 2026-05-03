@@ -1,112 +1,105 @@
 from flask import Blueprint, jsonify, request, session
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from database.analytics import get_or_create_analytics_session, record_menu_cart_add
-
-from database.db import get_db
+from database.db import get_session
+from database.models import Category, MenuItem, Restaurant
 
 menu_api = Blueprint("menu_api", __name__)
 
 
-def get_restaurant_by_slug(slug):
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(
-        """
-        SELECT r.*, u.name AS creator_name, u.email AS creator_email, u.avatar AS creator_avatar
-        FROM restaurants r
-        LEFT JOIN users u ON u.id = r.created_by
-        WHERE r.slug = %s AND r.is_active = TRUE
-        """,
-        (slug,),
+def model_to_dict(model, extra=None):
+    data = {column.name: getattr(model, column.name) for column in model.__table__.columns}
+    if extra:
+        data.update(extra)
+    return data
+
+
+def serialize_restaurant(restaurant):
+    creator = restaurant.creator
+    return model_to_dict(
+        restaurant,
+        extra={
+            "creator_name": creator.name if creator else None,
+            "creator_email": creator.email if creator else None,
+            "creator_avatar": creator.avatar if creator else None,
+        },
     )
-    restaurant = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return restaurant
+
+
+def serialize_menu_item(menu_item):
+    return model_to_dict(menu_item)
+
+
+def serialize_category(category):
+    return model_to_dict(category)
+
+
+def get_restaurant_by_slug(slug):
+    db_session = get_session()
+    restaurant = db_session.execute(
+        select(Restaurant)
+        .options(joinedload(Restaurant.creator))
+        .where(Restaurant.slug == slug, Restaurant.is_active.is_(True))
+    ).scalar_one_or_none()
+    return serialize_restaurant(restaurant) if restaurant else None
 
 
 def get_restaurant_by_slug_any_status(slug):
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(
-        """
-        SELECT r.*, u.name AS creator_name, u.email AS creator_email, u.avatar AS creator_avatar
-        FROM restaurants r
-        LEFT JOIN users u ON u.id = r.created_by
-        WHERE r.slug = %s
-        """,
-        (slug,),
-    )
-    restaurant = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return restaurant
+    db_session = get_session()
+    restaurant = db_session.execute(
+        select(Restaurant)
+        .options(joinedload(Restaurant.creator))
+        .where(Restaurant.slug == slug)
+    ).scalar_one_or_none()
+    return serialize_restaurant(restaurant) if restaurant else None
 
 
 def get_default_restaurant():
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(
-        """
-        SELECT r.*, u.name AS creator_name, u.email AS creator_email, u.avatar AS creator_avatar
-        FROM restaurants r
-        LEFT JOIN users u ON u.id = r.created_by
-        WHERE r.is_active = TRUE
-        ORDER BY r.id
-        LIMIT 1
-        """
-    )
-    restaurant = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return restaurant
+    db_session = get_session()
+    restaurant = db_session.execute(
+        select(Restaurant)
+        .options(joinedload(Restaurant.creator))
+        .where(Restaurant.is_active.is_(True))
+        .order_by(Restaurant.id)
+        .limit(1)
+    ).scalar_one_or_none()
+    return serialize_restaurant(restaurant) if restaurant else None
 
 
 def get_active_restaurants():
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(
-        """
-        SELECT id, name, slug, logo, address, description
-        FROM restaurants
-        WHERE is_active = TRUE
-        ORDER BY name
-        """
-    )
-    restaurants = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return restaurants
+    db_session = get_session()
+    restaurants = db_session.execute(
+        select(Restaurant)
+        .where(Restaurant.is_active.is_(True))
+        .order_by(Restaurant.name)
+    ).scalars().all()
+    return [
+        {
+            "id": restaurant.id,
+            "name": restaurant.name,
+            "slug": restaurant.slug,
+            "logo": restaurant.logo,
+            "address": restaurant.address,
+            "description": restaurant.description,
+        }
+        for restaurant in restaurants
+    ]
 
 
 def get_restaurant_menu(restaurant_id):
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM menu
-        WHERE restaurant_id = %s
-        ORDER BY sort_order, name
-        """,
-        (restaurant_id,),
-    )
-    menu = cursor.fetchall()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM categories
-        WHERE restaurant_id = %s AND is_active = TRUE
-        ORDER BY sort_order, name
-        """,
-        (restaurant_id,),
-    )
-    categories = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
+    db_session = get_session()
+    menu = db_session.execute(
+        select(MenuItem)
+        .where(MenuItem.restaurant_id == restaurant_id)
+        .order_by(MenuItem.sort_order, MenuItem.name)
+    ).scalars().all()
+    categories = db_session.execute(
+        select(Category)
+        .where(Category.restaurant_id == restaurant_id, Category.is_active.is_(True))
+        .order_by(Category.sort_order, Category.name)
+    ).scalars().all()
     return menu, categories
 
 
@@ -117,7 +110,13 @@ def get_menu():
         return jsonify({"restaurant": None, "menu": [], "categories": []})
 
     menu, categories = get_restaurant_menu(restaurant["id"])
-    return jsonify({"restaurant": restaurant, "menu": menu, "categories": categories})
+    return jsonify(
+        {
+            "restaurant": restaurant,
+            "menu": [serialize_menu_item(item) for item in menu],
+            "categories": [serialize_category(category) for category in categories],
+        }
+    )
 
 
 @menu_api.route("/api/<restaurant_slug>/menu")
@@ -127,7 +126,13 @@ def get_menu_by_restaurant(restaurant_slug):
         return jsonify({"error": "Restaurant not found"}), 404
 
     menu, categories = get_restaurant_menu(restaurant["id"])
-    return jsonify({"restaurant": restaurant, "menu": menu, "categories": categories})
+    return jsonify(
+        {
+            "restaurant": restaurant,
+            "menu": [serialize_menu_item(item) for item in menu],
+            "categories": [serialize_category(category) for category in categories],
+        }
+    )
 
 
 @menu_api.route("/api/analytics/cart-add", methods=["POST"])
@@ -157,13 +162,8 @@ def track_cart_add():
 
 
 def fetch_menu_item_restaurant(menu_item_id):
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(
-        "SELECT id, restaurant_id FROM menu WHERE id = %s",
-        (menu_item_id,),
-    )
-    item = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return item
+    db_session = get_session()
+    item = db_session.execute(
+        select(MenuItem.id, MenuItem.restaurant_id).where(MenuItem.id == menu_item_id)
+    ).mappings().first()
+    return dict(item) if item else None

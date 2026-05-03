@@ -5,7 +5,10 @@ from flask import Flask, abort, redirect, render_template, request, session, url
 from dotenv import load_dotenv
 from api.menu import get_active_restaurants, get_restaurant_by_slug, get_restaurant_by_slug_any_status, menu_api
 from api.admin import admin
+from config import SQLALCHEMY_DATABASE_URI
 from database.analytics import get_or_create_analytics_session, record_restaurant_visit
+from database.extensions import db, migrate
+import database.models
 
 load_dotenv()
 
@@ -17,7 +20,12 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=bool(os.environ.get("SESSION_COOKIE_SECURE")),
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI,
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
 )
+
+db.init_app(app)
+migrate.init_app(app, db, directory="migrations")
 
 app.register_blueprint(menu_api)
 app.register_blueprint(admin)
