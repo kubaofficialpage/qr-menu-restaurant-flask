@@ -1,13 +1,12 @@
-import mysql.connector
+from sqlalchemy import create_engine, text
+
+from config import SQLALCHEMY_DATABASE_URI
+
 
 try:
-    conn = mysql.connector.connect(
-        host="127.0.0.1",
-        user="root",
-        password=""
-    )
-
-    print("MYSQL OK")
-
-except Exception as e:
-    print("ERROR:", e)
+    engine = create_engine(SQLALCHEMY_DATABASE_URI)
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+    print("DB OK")
+except Exception as exc:
+    print("ERROR:", exc)

@@ -4,7 +4,7 @@ from datetime import timedelta
 from flask import Flask, abort, redirect, render_template, request, session, url_for
 from dotenv import load_dotenv
 from api.menu import get_active_restaurants, get_restaurant_by_slug, get_restaurant_by_slug_any_status, menu_api
-from api.admin import admin
+from api.admin_panel import admin
 from config import SQLALCHEMY_DATABASE_URI
 from database.analytics import get_or_create_analytics_session, record_restaurant_visit
 from database.extensions import db, migrate
