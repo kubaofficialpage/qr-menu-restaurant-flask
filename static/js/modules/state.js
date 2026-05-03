@@ -1,4 +1,6 @@
 // state.js - Глобальное состояние приложения
+import { getRestaurantSlug } from "./page-context.js";
+
 const CART_STORAGE_KEY = "qr_menu_cart";
 const CART_TTL_MS = 1000 * 60 * 60; // 1 час
 
@@ -43,7 +45,8 @@ export function setMenuData(menuItems = [], categories = []) {
 }
 
 function getCartStorageKey() {
-    return window.RESTAURANT_SLUG ? `${CART_STORAGE_KEY}:${window.RESTAURANT_SLUG}` : CART_STORAGE_KEY;
+    const slug = getRestaurantSlug();
+    return slug ? `${CART_STORAGE_KEY}:${slug}` : CART_STORAGE_KEY;
 }
 
 function isExpired(timestamp) {

@@ -1,4 +1,4 @@
-import { showToast } from "./toast.js";
+import { showToast } from "../modules/toast.js";
 
 const form = document.getElementById("menuGeneratorForm");
 const clearButton = document.getElementById("clearMenuSeedBtn");

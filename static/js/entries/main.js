@@ -1,16 +1,16 @@
-import { loadMenuData } from './api.js';
-import { addItem, removeItem, updateCart } from './cart.js';
-import { getById } from './dom.js';
-import { getRestaurantSlug } from './page-context.js';
-import { initImageLoading } from './image.js';
-import { logError } from './logger.js';
-import { openItemModal, closeItemModal, bgClose } from './modal.js';
-import { filterCat, hideSearchDropdown, searchItems } from './search.js';
-import { loadCartFromStorage } from './state.js';
-import { applyTranslations, bindLangSwitcher, initI18n } from './i18n.js';
-import { renderCategories, renderCategoriesSkeleton, renderMenu, renderMenuSkeleton } from './render.js';
-import { state } from './state.js';
-import { lockPageScroll, unlockPageScroll } from './scroll-lock.js';
+import { loadMenuData } from '../modules/api.js';
+import { addItem, removeItem, updateCart } from '../modules/cart.js';
+import { getById } from '../modules/dom.js';
+import { getRestaurantSlug } from '../modules/page-context.js';
+import { initImageLoading } from '../modules/image.js';
+import { logError } from '../modules/logger.js';
+import { openItemModal, closeItemModal, bgClose } from '../modules/modal.js';
+import { filterCat, hideSearchDropdown, searchItems } from '../modules/search.js';
+import { loadCartFromStorage } from '../modules/state.js';
+import { applyTranslations, bindLangSwitcher, initI18n } from '../modules/i18n.js';
+import { renderCategories, renderCategoriesSkeleton, renderMenu, renderMenuSkeleton } from '../modules/render.js';
+import { state } from '../modules/state.js';
+import { lockPageScroll, unlockPageScroll } from '../modules/scroll-lock.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     getRestaurantSlug();

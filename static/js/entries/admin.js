@@ -1,4 +1,4 @@
-import { showToast } from "./toast.js";
+import { showToast } from "../modules/toast.js";
 
 const modal = document.getElementById("adminModal");
 const modalTitle = document.getElementById("adminModalTitle");

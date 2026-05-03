@@ -1,7 +1,7 @@
-import { fetchMenuData } from './api.js';
-import { getById } from './dom.js';
-import { state, loadCartFromStorage, saveCartToStorage } from './state.js';
-import { getRestaurantSlug } from './page-context.js';
+import { fetchMenuData } from '../modules/api.js';
+import { getById } from '../modules/dom.js';
+import { state, loadCartFromStorage, saveCartToStorage } from '../modules/state.js';
+import { getRestaurantSlug } from '../modules/page-context.js';
 import {
     IMAGE_PLACEHOLDER,
     escapeHtml,
@@ -10,12 +10,12 @@ import {
     getMenuItem,
     renderQuantityControl,
     renderUnavailableOverlay,
-} from './menu-ui.js';
-import { lockPageScroll, unlockPageScroll } from './scroll-lock.js';
-import { logError } from './logger.js';
-import { showToast } from './toast.js';
-import { initImageLoading } from './image.js';
-import { applyTranslations, bindLangSwitcher, initI18n, t } from './i18n.js';
+} from '../modules/menu-ui.js';
+import { lockPageScroll, unlockPageScroll } from '../modules/scroll-lock.js';
+import { logError } from '../modules/logger.js';
+import { showToast } from '../modules/toast.js';
+import { initImageLoading } from '../modules/image.js';
+import { applyTranslations, bindLangSwitcher, initI18n, t } from '../modules/i18n.js';
 
 const CART_PAGE_TOUR_STORAGE_KEY = "qr_menu_cart_page_tour_seen";
 const MENU_ITEM_STAGGER_MS = 45;

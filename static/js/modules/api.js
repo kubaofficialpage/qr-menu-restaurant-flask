@@ -1,9 +1,8 @@
 import { renderCategories, renderMenu } from './render.js';
 import { getById } from './dom.js';
 import { logError } from './logger.js';
-import { state } from "./state.js";
-import { getRestaurantSlug } from "./page-context.js";
-import { setMenuData } from './state.js';
+import { getRestaurantSlug } from './page-context.js';
+import { state, setMenuData } from './state.js';
 import { showToast } from './toast.js';
 import { t } from './i18n.js';
 
