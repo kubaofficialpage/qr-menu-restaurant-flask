@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import uuid
@@ -11,6 +12,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database.db import get_db
 from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
 from services.deepseek import generate_dish_description
+from services.menu_seed_generator import generate_menu_seed
 from services.qr_pdf import TEMPLATE_QR_PATH, build_restaurant_qr_pdf, build_restaurant_qr_preview
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
@@ -481,6 +483,19 @@ def form_checkbox_value(name):
     return 1 if request.form.get(name) == "on" else 0
 
 
+def safe_int(value, default=0, minimum=None, maximum=None):
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        value = default
+
+    if minimum is not None:
+        value = max(minimum, value)
+    if maximum is not None:
+        value = min(maximum, value)
+    return value
+
+
 def assign_user_restaurants(cursor, user_id, restaurant_ids):
     for restaurant_id in restaurant_ids:
         cursor.execute(
@@ -701,6 +716,181 @@ def qr_download():
         as_attachment=True,
         download_name=f"{restaurant['slug']}-qr-a4.pdf",
     )
+
+
+@admin.route("/menu-generator")
+@login_required
+def menu_generator():
+    restaurant = require_restaurant()
+    if not restaurant:
+        return redirect(url_for("admin.dashboard"))
+
+    return render_template("admin/menu_generator.html", restaurant=restaurant)
+
+
+@admin.route("/api/menu-generator", methods=["POST"])
+@login_required
+def generate_menu_seed_api():
+    restaurant = require_restaurant()
+    if not restaurant:
+        return jsonify({"ok": False, "message": "Restaurant not selected"}), 400
+
+    payload = request.get_json(silent=True) or {}
+    cuisine = (payload.get("cuisine") or "").strip()
+    concept = (payload.get("concept") or "").strip()
+    language = (payload.get("language") or "ru").strip() or "ru"
+    category_count = safe_int(payload.get("category_count"), default=5, minimum=1, maximum=12)
+    items_per_category = safe_int(payload.get("items_per_category"), default=6, minimum=1, maximum=20)
+
+    if not cuisine or not concept:
+        return jsonify({"ok": False, "message": "Cuisine and concept are required"}), 400
+
+    try:
+        generated = generate_menu_seed(
+            api_key=DEEPSEEK_API_KEY,
+            base_url=DEEPSEEK_BASE_URL,
+            model=DEEPSEEK_MODEL,
+            restaurant_name=restaurant["name"],
+            cuisine=cuisine,
+            concept=concept,
+            language=language,
+            category_count=category_count,
+            items_per_category=items_per_category,
+        )
+    except Exception as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 500
+
+    return jsonify({"ok": True, "generated_menu": generated})
+
+
+@admin.route("/menu-generator/import", methods=["POST"])
+@login_required
+def import_generated_menu():
+    validate_csrf()
+    restaurant = require_restaurant()
+    if not restaurant:
+        return redirect(url_for("admin.dashboard"))
+
+    raw_payload = request.form.get("generated_menu_json", "").strip()
+    if not raw_payload:
+        flash("Сначала сгенерируйте меню.", "error")
+        return redirect(url_for("admin.menu_generator"))
+
+    try:
+        generated_menu = json.loads(raw_payload)
+    except json.JSONDecodeError:
+        flash("Не удалось прочитать сгенерированное меню.", "error")
+        return redirect(url_for("admin.menu_generator"))
+
+    categories = generated_menu.get("categories", [])
+    if not categories:
+        flash("В сгенерированном меню нет категорий.", "error")
+        return redirect(url_for("admin.menu_generator"))
+
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    created_categories = 0
+    created_items = 0
+
+    try:
+        cursor.execute(
+            "SELECT COALESCE(MAX(sort_order), -1) AS max_sort_order FROM categories WHERE restaurant_id = %s",
+            (restaurant["id"],),
+        )
+        category_sort_order = int((cursor.fetchone() or {}).get("max_sort_order") or -1) + 1
+
+        cursor.execute(
+            "SELECT name, id FROM categories WHERE restaurant_id = %s",
+            (restaurant["id"],),
+        )
+        existing_categories = {
+            str(row["name"]).strip().lower(): row["id"]
+            for row in cursor.fetchall()
+        }
+
+        cursor.execute(
+            "SELECT name FROM menu WHERE restaurant_id = %s",
+            (restaurant["id"],),
+        )
+        existing_items = {
+            str(row["name"]).strip().lower()
+            for row in cursor.fetchall()
+        }
+
+        for category in categories:
+            category_name = str(category.get("name") or "").strip()
+            if not category_name:
+                continue
+
+            category_key = category_name.lower()
+            category_id = existing_categories.get(category_key)
+
+            if not category_id:
+                cursor.execute(
+                    """
+                    INSERT INTO categories (restaurant_id, name, sort_order)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (restaurant["id"], category_name, category_sort_order),
+                )
+                category_id = cursor.lastrowid
+                existing_categories[category_key] = category_id
+                category_sort_order += 1
+                created_categories += 1
+
+            for item in category.get("items", []):
+                item_name = str(item.get("name") or "").strip()
+                if not item_name:
+                    continue
+
+                item_key = item_name.lower()
+                if item_key in existing_items:
+                    continue
+
+                description = str(item.get("description") or "").strip() or None
+                amount = str(item.get("amount") or "").strip() or None
+                price = safe_int(item.get("price"), default=0, minimum=0)
+
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO menu (
+                            restaurant_id, name, description, price, amount, image, category_id, is_available
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (restaurant["id"], item_name, description, price, amount, None, category_id, 1),
+                    )
+                except Exception as inner_exc:
+                    message = str(inner_exc)
+                    if "Unknown column" in message and "is_available" in message:
+                        cursor.execute(
+                            """
+                            INSERT INTO menu (restaurant_id, name, description, price, amount, image, category_id)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            """,
+                            (restaurant["id"], item_name, description, price, amount, None, category_id),
+                        )
+                    else:
+                        raise
+
+                existing_items.add(item_key)
+                created_items += 1
+
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        flash(f"Не удалось импортировать меню: {exc}", "error")
+        return redirect(url_for("admin.menu_generator"))
+    finally:
+        cursor.close()
+        conn.close()
+
+    flash(
+        f"Импорт завершён: категорий добавлено {created_categories}, блюд добавлено {created_items}.",
+        "success",
+    )
+    return redirect(url_for("admin.menu"))
 
 
 @admin.route("/select-restaurant/<int:restaurant_id>")

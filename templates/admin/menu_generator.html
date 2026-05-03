@@ -1,0 +1,94 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Генератор меню - Админка QR Menu{% endblock %}
+{% block page_title %}Генератор меню{% endblock %}
+
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-[420px_1fr]">
+    <section class="rounded-xl border border-slate-200 bg-white p-5">
+        <div>
+            <h2 class="text-xl font-bold tracking-tight">AI-генерация категорий и блюд</h2>
+            <p class="mt-2 text-sm text-slate-500">
+                Отдельный мини-инструмент для быстрого создания черновика меню по концепции ресторана.
+            </p>
+        </div>
+
+        <form id="menuGeneratorForm" class="mt-6 space-y-5">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Ресторан</label>
+                <input value="{{ restaurant.name }}" disabled class="mt-1 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-slate-600">
+            </div>
+
+            <div>
+                <label for="generatorCuisine" class="block text-sm font-medium text-slate-700">Кухня</label>
+                <input id="generatorCuisine" name="cuisine" required placeholder="Например: европейская, японская, кофейня, стритфуд" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+            </div>
+
+            <div>
+                <label for="generatorConcept" class="block text-sm font-medium text-slate-700">Концепция</label>
+                <textarea id="generatorConcept" name="concept" rows="4" required placeholder="Например: семейный ресторан с акцентом на завтраки и домашнюю подачу" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></textarea>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-3">
+                <div>
+                    <label for="generatorLanguage" class="block text-sm font-medium text-slate-700">Язык</label>
+                    <select id="generatorLanguage" name="language" class="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+                        <option value="ru">Русский</option>
+                        <option value="ky">Кыргызский</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="generatorCategoryCount" class="block text-sm font-medium text-slate-700">Категорий</label>
+                    <input id="generatorCategoryCount" name="category_count" type="number" min="1" max="12" value="5" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+                </div>
+                <div>
+                    <label for="generatorItemsPerCategory" class="block text-sm font-medium text-slate-700">Блюд в категории</label>
+                    <input id="generatorItemsPerCategory" name="items_per_category" type="number" min="1" max="20" value="6" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+                </div>
+            </div>
+
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Генерация создаёт черновик. Перед импортом проверьте названия, цены и формулировки.
+            </div>
+
+            <div class="flex flex-wrap gap-3">
+                <button id="generateMenuSeedBtn" type="submit" class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                    Сгенерировать
+                </button>
+                <button id="clearMenuSeedBtn" type="button" class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">
+                    Очистить
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <section class="rounded-xl border border-slate-200 bg-white">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div>
+                <h3 class="font-semibold">Предпросмотр</h3>
+                <p id="menuGeneratorPreviewMeta" class="text-sm text-slate-500">Сначала выполните генерацию.</p>
+            </div>
+            <form id="menuGeneratorImportForm" method="POST" action="{{ url_for('admin.import_generated_menu') }}" class="hidden" data-generator-import-form>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="generated_menu_json" value="" data-generated-menu-json>
+                <button type="submit" class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+                    Импортировать в меню
+                </button>
+            </form>
+        </div>
+        <div id="menuGeneratorPreview" class="space-y-4 p-5">
+            <div class="rounded-lg border border-dashed border-slate-200 px-5 py-10 text-center text-sm text-slate-500">
+                Здесь появятся категории и блюда после генерации.
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.MENU_GENERATOR_API_URL = {{ url_for('admin.generate_menu_seed_api')|tojson }};
+</script>
+<script type="module" src="/static/js/admin-menu-generator.js"></script>
+{% endblock %}
