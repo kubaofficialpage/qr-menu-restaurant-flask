@@ -1,4 +1,5 @@
 import { fetchMenuData } from './api.js';
+import { getById } from './dom.js';
 import { state, loadCartFromStorage, saveCartToStorage } from './state.js';
 import {
     IMAGE_PLACEHOLDER,
@@ -10,6 +11,7 @@ import {
     renderUnavailableOverlay,
 } from './menu-ui.js';
 import { lockPageScroll, unlockPageScroll } from './scroll-lock.js';
+import { logError } from './logger.js';
 import { showToast } from './toast.js';
 import { initImageLoading } from './image.js';
 import { applyTranslations, bindLangSwitcher, initI18n, t } from './i18n.js';
@@ -19,6 +21,7 @@ const MENU_ITEM_STAGGER_MS = 45;
 const MENU_ITEM_MAX_DELAY_MS = 450;
 const CART_ITEM_EXIT_FALLBACK_MS = 320;
 let cartTourStep = 0;
+let cartTourPositionFrame = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     initI18n("ru");
@@ -39,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchMenuData()
         .then(renderCartPage)
         .catch(error => {
-            console.error('Error loading cart page data:', error);
+            logError("cart:load", error);
             showToast(t("no_server_response"));
             renderCartPage();
         });
@@ -119,10 +122,10 @@ function bindCartPageActions() {
     document.getElementById("splitBillPageModal")?.addEventListener('click', closeModalOnBackdrop);
     document.getElementById("cartTourNextBtn")?.addEventListener('click', nextCartTourStep);
     document.getElementById("cartTourSkipBtn")?.addEventListener('click', completeCartTour);
-    window.addEventListener('resize', positionCartTour);
-    window.addEventListener('scroll', positionCartTour, { passive: true });
+    window.addEventListener('resize', scheduleCartTourPosition);
+    window.addEventListener('scroll', scheduleCartTourPosition, { passive: true });
 
-    document.getElementById("cartPageCheckout")?.addEventListener('click', (e) => {
+    getById("cartPageCheckout")?.addEventListener('click', (e) => {
         e.preventDefault();
         alert(t("checkout_not_connected"));
     });
@@ -513,6 +516,15 @@ function clearCartTourTarget() {
     });
     document.querySelectorAll(".cart-tour-parent").forEach(element => {
         element.classList.remove("cart-tour-parent");
+    });
+}
+
+function scheduleCartTourPosition() {
+    if (cartTourPositionFrame) return;
+
+    cartTourPositionFrame = requestAnimationFrame(() => {
+        cartTourPositionFrame = 0;
+        positionCartTour();
     });
 }
 

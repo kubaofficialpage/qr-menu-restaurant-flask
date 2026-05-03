@@ -1,6 +1,8 @@
 import { loadMenuData } from './api.js';
 import { addItem, removeItem, updateCart } from './cart.js';
+import { getById } from './dom.js';
 import { initImageLoading } from './image.js';
+import { logError } from './logger.js';
 import { openItemModal, closeItemModal, bgClose } from './modal.js';
 import { filterCat, hideSearchDropdown, searchItems } from './search.js';
 import { loadCartFromStorage } from './state.js';
@@ -22,17 +24,22 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener("qrMenuLangChanged", () => {
         applyTranslations();
         renderCategories();
+        const title = getById("catTitle");
         if (state.activeCat === "all") {
-            document.getElementById("catTitle") && (document.getElementById("catTitle").innerText = document.querySelector("[data-i18n='all_dishes']")?.innerText || document.getElementById("catTitle").innerText);
+            if (title) {
+                title.innerText = document.querySelector("[data-i18n='all_dishes']")?.innerText || title.innerText;
+            }
             renderMenu(state.menuData, { groupByCategory: true });
         }
     });
 
-    loadMenuData().then(updateCart);
+    loadMenuData().then(updateCart).catch((error) => {
+        logError("menu:init", error);
+    });
 
-    document.getElementById("search")?.addEventListener("input", searchItems);
-    document.getElementById("itemModal")?.addEventListener('click', bgClose);
-    document.getElementById("restaurantInfoModal")?.addEventListener('click', bgCloseRestaurantInfo);
+    getById("search")?.addEventListener("input", searchItems);
+    getById("itemModal")?.addEventListener('click', bgClose);
+    getById("restaurantInfoModal")?.addEventListener('click', bgCloseRestaurantInfo);
 
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
@@ -87,7 +94,7 @@ function handleDocumentClick(e) {
 }
 
 function openRestaurantInfo() {
-    const modal = document.getElementById("restaurantInfoModal");
+    const modal = getById("restaurantInfoModal");
     if (!modal) return;
     modal.classList.remove("hidden");
     modal.classList.add("flex");
@@ -95,7 +102,7 @@ function openRestaurantInfo() {
 }
 
 function closeRestaurantInfo() {
-    const modal = document.getElementById("restaurantInfoModal");
+    const modal = getById("restaurantInfoModal");
     if (!modal) return;
     modal.classList.add("hidden");
     modal.classList.remove("flex");

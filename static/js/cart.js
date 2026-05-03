@@ -1,3 +1,5 @@
+import { getById } from './dom.js';
+import { getMenuItem } from './menu-ui.js';
 import { state, saveCartToStorage } from './state.js';
 import { isMenuItemAvailable, renderCartButton } from './render.js';
 
@@ -46,7 +48,7 @@ function updateAllCartControls() {
 }
 
 function updateCartCount() {
-    const cartCount = document.getElementById("cartCount");
+    const cartCount = getById("cartCount");
     if (!cartCount) return;
 
     cartCount.innerText = Object.values(state.cartQty)
@@ -70,6 +72,7 @@ function removeUnavailableItems() {
 function trackCartAdd(id) {
     const restaurantId = state.restaurant?.id;
     if (!restaurantId) return;
+    if (!getMenuItem(id)) return;
 
     const payload = JSON.stringify({
         restaurantId,

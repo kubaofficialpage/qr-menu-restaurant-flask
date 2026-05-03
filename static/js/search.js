@@ -1,24 +1,28 @@
 import { escapeHtml, renderCategories, renderMenu } from './render.js';
+import { getById } from './dom.js';
+import { logError } from './logger.js';
 import { syncMenuImageElement } from './image.js';
 import { getMenuImageSrc, renderMenuImageMarkup } from './menu-ui.js';
 import { state } from './state.js';
 import { t } from './i18n.js';
 
 const SEARCH_DROPDOWN_LIMIT = 6;
+const SEARCH_INPUT_DEBOUNCE_MS = 120;
+let searchTimer = null;
 
 export function filterCat(cat) {
     state.activeCat = cat;
     renderCategories();
     hideSearchDropdown();
 
-    const title = document.getElementById("catTitle");
+    const title = getById("catTitle");
     if (cat === "all") {
         title.innerText = t("all_dishes");
         renderMenu(state.menuData, { groupByCategory: true });
         return;
     }
 
-    const category = state.categories.find(item => String(item.id) === String(cat));
+    const category = state.categoriesById.get(String(cat));
     if (!category) {
         state.activeCat = "all";
         title.innerText = t("all_dishes");
@@ -28,26 +32,17 @@ export function filterCat(cat) {
     }
 
     title.innerText = category.name;
-    renderMenu(state.menuData.filter(item => String(item.category_id) === String(cat)));
+    renderMenu(state.menuByCategory.get(String(cat)) || []);
 }
 
 export function searchItems(e) {
-    const text = e.target.value.toLowerCase().trim();
-    const title = document.getElementById("catTitle");
-
-    if (!text) {
-        restoreActiveCategory(title);
-        return;
-    }
-
-    const filtered = state.menuData.filter(item => String(item.name).toLowerCase().includes(text));
-    title.innerText = t("search_result_title");
-    renderMenu(filtered);
-    renderSearchDropdown(filtered);
+    const text = String(e.target.value || "").toLowerCase().trim();
+    clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => applySearch(text), SEARCH_INPUT_DEBOUNCE_MS);
 }
 
 export function hideSearchDropdown() {
-    document.getElementById("searchDropdown")?.classList.add("hidden");
+    getById("searchDropdown")?.classList.add("hidden");
 }
 
 function restoreActiveCategory(title) {
@@ -59,7 +54,7 @@ function restoreActiveCategory(title) {
         return;
     }
 
-    const category = state.categories.find(item => String(item.id) === String(state.activeCat));
+    const category = state.categoriesById.get(String(state.activeCat));
     if (!category) {
         state.activeCat = "all";
         title.innerText = t("all_dishes");
@@ -69,11 +64,11 @@ function restoreActiveCategory(title) {
     }
 
     title.innerText = category.name;
-    renderMenu(state.menuData.filter(item => String(item.category_id) === String(state.activeCat)));
+    renderMenu(state.menuByCategory.get(String(state.activeCat)) || []);
 }
 
 function renderSearchDropdown(items) {
-    const dropdown = document.getElementById("searchDropdown");
+    const dropdown = getById("searchDropdown");
     if (!dropdown) return;
 
     const visibleItems = items.slice(0, SEARCH_DROPDOWN_LIMIT);
@@ -181,7 +176,7 @@ function getSearchImageSrc(item) {
 }
 
 function toggleSearchEmptyState(dropdown, isVisible) {
-    let emptyState = document.getElementById("searchEmptyState");
+    let emptyState = getById("searchEmptyState");
 
     if (!emptyState) {
         emptyState = document.createElement("p");
@@ -196,4 +191,24 @@ function toggleSearchEmptyState(dropdown, isVisible) {
     }
 
     emptyState.classList.toggle("hidden", !isVisible);
+}
+
+function applySearch(text) {
+    const title = getById("catTitle");
+    if (!title) return;
+
+    try {
+        if (!text) {
+            restoreActiveCategory(title);
+            return;
+        }
+
+        const filtered = state.menuData.filter(item => String(item.name).toLowerCase().includes(text));
+        title.innerText = t("search_result_title");
+        renderMenu(filtered);
+        renderSearchDropdown(filtered);
+    } catch (error) {
+        logError("menu:search", error, { text });
+        restoreActiveCategory(title);
+    }
 }

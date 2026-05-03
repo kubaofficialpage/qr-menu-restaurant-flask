@@ -12,7 +12,7 @@ export function escapeHtml(value) {
 }
 
 export function getMenuItem(id) {
-    return state.menuData.find(item => String(item.id) === String(id));
+    return state.menuById.get(String(id));
 }
 
 export function isMenuItemAvailable(id) {

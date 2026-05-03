@@ -1,9 +1,13 @@
 import { renderCategories, renderMenu } from './render.js';
+import { getById } from './dom.js';
+import { logError } from './logger.js';
 import { state } from './state.js';
+import { setMenuData } from './state.js';
 import { showToast } from './toast.js';
 import { t } from './i18n.js';
 
 const MENU_REQUEST_TIMEOUT_MS = 8000;
+const MENU_CACHE_KEY = window.RESTAURANT_SLUG ? `qr_menu_cache:${window.RESTAURANT_SLUG}` : "qr_menu_cache:default";
 
 export function fetchMenuData() {
     const controller = new AbortController();
@@ -20,10 +24,8 @@ export function fetchMenuData() {
         })
         .then(data => {
             state.restaurant = data.restaurant || null;
-            state.menuData.length = 0;
-            state.menuData.push(...(data.menu || []));
-            state.categories.length = 0;
-            state.categories.push(...(data.categories || []));
+            setMenuData(data.menu || [], data.categories || []);
+            saveMenuCache(data);
             return data;
         })
         .finally(() => clearTimeout(timeoutId));
@@ -37,15 +39,24 @@ export function loadMenuData() {
             return data;
         })
         .catch(error => {
-            console.error('Error loading menu data:', error);
+            logError("menu:load", error, { slug: window.RESTAURANT_SLUG || null });
+            const cached = loadMenuCache();
+            if (cached) {
+                state.restaurant = cached.restaurant || null;
+                setMenuData(cached.menu || [], cached.categories || []);
+                renderCategories();
+                renderMenu(state.menuData, { groupByCategory: true });
+                showToast(t("no_server_response"));
+                return cached;
+            }
             showToast(t("no_server_response"));
             renderMenuError();
         });
 }
 
 function renderMenuError() {
-    const title = document.getElementById("catTitle");
-    const menu = document.getElementById("menu");
+    const title = getById("catTitle");
+    const menu = getById("menu");
 
     if (title) title.innerText = t("menu_load_error_title");
     if (!menu) return;
@@ -55,4 +66,22 @@ function renderMenuError() {
             ${t("menu_load_error_text")}
         </p>
     `;
+}
+
+function saveMenuCache(data) {
+    try {
+        sessionStorage.setItem(MENU_CACHE_KEY, JSON.stringify(data));
+    } catch (error) {
+        logError("menu:cache-save", error);
+    }
+}
+
+function loadMenuCache() {
+    try {
+        const raw = sessionStorage.getItem(MENU_CACHE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        logError("menu:cache-load", error);
+        return null;
+    }
 }

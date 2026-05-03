@@ -12,11 +12,15 @@ import {
 import { syncMenuImageElement } from './image.js';
 import { state } from './state.js';
 import { t } from './i18n.js';
+import { getById } from './dom.js';
+import { logError } from './logger.js';
 
 export { IMAGE_PLACEHOLDER, escapeHtml, isMenuItemAvailable };
 
 const MENU_ITEM_STAGGER_MS = 45;
 const MENU_ITEM_MAX_DELAY_MS = 450;
+const MENU_CHUNK_SIZE = 24;
+const MENU_LAZY_RENDER_THRESHOLD = 60;
 
 export function renderCategories() {
     const categories = [
@@ -28,11 +32,14 @@ export function renderCategories() {
         })),
     ];
 
-    document.getElementById("categories").innerHTML = categories.join("");
+    const container = getById("categories");
+    if (container) {
+        container.innerHTML = categories.join("");
+    }
 }
 
 export function renderCategoriesSkeleton(count = 6) {
-    const container = document.getElementById("categories");
+    const container = getById("categories");
     if (!container) return;
     if (container.dataset.skeleton === "true") return;
 
@@ -53,7 +60,7 @@ export function renderCategoriesSkeleton(count = 6) {
 }
 
 export function renderMenu(data = [], options = {}) {
-    const menu = document.getElementById("menu");
+    const menu = getById("menu");
     if (!menu) return;
 
     if (menu.dataset.skeleton === "true") {
@@ -82,26 +89,20 @@ export function renderMenu(data = [], options = {}) {
     toggleMenuEmptyState(menu, items.length === 0);
     if (items.length === 0) return;
 
-    const fragment = document.createDocumentFragment();
-    let animationIndex = 0;
+    const groups = getMenuRenderGroups(items, groupByCategory);
+    const renderToken = ++state.renderToken;
 
-    getMenuRenderGroups(items, groupByCategory).forEach(group => {
-        if (groupByCategory) {
-            fragment.appendChild(createCategoryTitle(group.name));
-        }
+    if (items.length >= MENU_LAZY_RENDER_THRESHOLD) {
+        renderMenuInChunks(menu, groups, cards, renderToken, groupByCategory);
+        return;
+    }
 
-        group.items.forEach(item => {
-            const card = getMenuCard(item, cards, animationIndex);
-            fragment.appendChild(card);
-            animationIndex++;
-        });
-    });
-
-    menu.appendChild(fragment);
+    const result = buildMenuFragment(groups, cards, groupByCategory);
+    menu.appendChild(result.fragment);
 }
 
 export function renderMenuSkeleton(count = 12) {
-    const menu = document.getElementById("menu");
+    const menu = getById("menu");
     if (!menu) return;
     if (menu.dataset.skeleton === "true") return;
 
@@ -302,4 +303,81 @@ function toggleMenuEmptyState(menu, isVisible) {
     }
 
     emptyState.classList.toggle("hidden", !isVisible);
+}
+
+function buildMenuFragment(groups, cards, groupByCategory, startIndex = 0, maxItems = Number.POSITIVE_INFINITY) {
+    const fragment = document.createDocumentFragment();
+    let animationIndex = startIndex;
+    let renderedItems = 0;
+
+    for (const group of groups) {
+        let titleRendered = false;
+
+        for (const item of group.items) {
+            if (renderedItems >= maxItems) {
+                return { fragment, renderedItems, animationIndex };
+            }
+
+            if (groupByCategory && !titleRendered) {
+                fragment.appendChild(createCategoryTitle(group.name));
+                titleRendered = true;
+            }
+
+            const card = getMenuCard(item, cards, animationIndex);
+            fragment.appendChild(card);
+            animationIndex++;
+            renderedItems++;
+        }
+    }
+
+    return { fragment, renderedItems, animationIndex };
+}
+
+function renderMenuInChunks(menu, groups, cards, renderToken, groupByCategory) {
+    let animationIndex = 0;
+    let groupIndex = 0;
+    let itemIndexInGroup = 0;
+
+    const step = () => {
+        if (renderToken !== state.renderToken) return;
+
+        const fragment = document.createDocumentFragment();
+        let rendered = 0;
+
+        while (groupIndex < groups.length && rendered < MENU_CHUNK_SIZE) {
+            const group = groups[groupIndex];
+
+            if (groupByCategory && itemIndexInGroup === 0) {
+                fragment.appendChild(createCategoryTitle(group.name));
+            }
+
+            while (itemIndexInGroup < group.items.length && rendered < MENU_CHUNK_SIZE) {
+                const item = group.items[itemIndexInGroup];
+                const card = getMenuCard(item, cards, animationIndex);
+                fragment.appendChild(card);
+                itemIndexInGroup++;
+                animationIndex++;
+                rendered++;
+            }
+
+            if (itemIndexInGroup >= group.items.length) {
+                groupIndex++;
+                itemIndexInGroup = 0;
+            }
+        }
+
+        menu.appendChild(fragment);
+
+        if (groupIndex < groups.length) {
+            requestAnimationFrame(step);
+        }
+    };
+
+    try {
+        requestAnimationFrame(step);
+    } catch (error) {
+        logError("menu:chunk-render", error, { groups: groups.length });
+        const result = buildMenuFragment(groups, cards, groupByCategory);
+        menu.appendChild(result.fragment);
+    }
 }

@@ -1,4 +1,5 @@
 import { escapeHtml, renderCartButton } from './render.js';
+import { getById } from './dom.js';
 import { getMenuImageSrc, renderMenuImageMarkup } from './menu-ui.js';
 import { lockPageScroll, unlockPageScroll } from './scroll-lock.js';
 import { state } from './state.js';
@@ -30,20 +31,20 @@ function renderIngredientsTags(value) {
 }
 
 export function openItemModal(id) {
-    const item = state.menuData.find(menuItem => String(menuItem.id) === String(id));
+    const item = state.menuById.get(String(id));
     if (!item || !item.is_available) return;
 
-    document.getElementById("itemModalContent").innerHTML = renderItemModalContent(item);
-    document.getElementById("modalSheet").style.maxHeight = "80vh";
+    getById("itemModalContent").innerHTML = renderItemModalContent(item);
+    getById("modalSheet").style.maxHeight = "80vh";
 
-    const modal = document.getElementById("itemModal");
+    const modal = getById("itemModal");
     modal.classList.remove("hidden");
     lockPageScroll("item-modal");
     requestAnimationFrame(() => modal.classList.add("is-open"));
 }
 
 export function closeItemModal() {
-    const modal = document.getElementById("itemModal");
+    const modal = getById("itemModal");
     modal.classList.add("hidden");
     modal.classList.remove("is-open");
     unlockPageScroll("item-modal");

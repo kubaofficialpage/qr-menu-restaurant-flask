@@ -1,4 +1,5 @@
 let isImageLoadingInitialized = false;
+const IMAGE_FALLBACK_SRC = "/static/resource/img/default_food_png.png";
 
 export function initImageLoading(root = document) {
     if (root === document) {
@@ -24,6 +25,7 @@ export function syncMenuImageElement(image, src, alt = "", spinnerClass = "image
     if (image.dataset.imageSrc === src) return;
 
     image.dataset.imageSrc = src;
+    delete image.dataset.imageFallbackApplied;
     image.classList.remove("is-loaded");
     image.src = src;
     image.alt = alt ?? "";
@@ -42,6 +44,14 @@ function handleImageError(e) {
     const image = e.target;
     if (!(image instanceof HTMLImageElement) || !image.classList.contains("menu-image")) return;
 
-    image.previousElementSibling?.classList.contains("image-spinner") && image.previousElementSibling.remove();
-    image.remove();
+    if (image.dataset.imageFallbackApplied === "true") {
+        image.previousElementSibling?.classList.contains("image-spinner") && image.previousElementSibling.remove();
+        image.classList.add("is-loaded");
+        return;
+    }
+
+    image.dataset.imageFallbackApplied = "true";
+    image.classList.remove("is-loaded");
+    image.src = IMAGE_FALLBACK_SRC;
+    ensureImageSpinner(image);
 }
