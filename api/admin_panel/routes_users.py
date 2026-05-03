@@ -7,7 +7,7 @@ from database.db import get_session, session_scope
 from database.models import RestaurantUser, User
 
 from . import admin
-from .auth import developer_required, validate_csrf
+from .auth import developer_required
 from .queries import get_all_restaurants
 from .utils import (
     allowed_file,
@@ -171,8 +171,6 @@ def delete_user(user_id):
 @admin.route("/users/toggle-active/<int:user_id>", methods=["POST"])
 @developer_required
 def toggle_user_active(user_id):
-    validate_csrf()
-
     if user_id == session.get("user_id") and request.form.get("is_active") != "on":
         flash("Нельзя выключить свой аккаунт.", "error")
         return redirect(url_for("admin.users"))

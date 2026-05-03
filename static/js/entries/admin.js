@@ -1,5 +1,20 @@
 import { showToast } from "../modules/toast.js";
 
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "";
+
+const originalFetch = window.fetch?.bind(window);
+if (csrfToken && originalFetch) {
+    window.fetch = (input, init = {}) => {
+        const method = String(init.method || "GET").toUpperCase();
+        const shouldProtect = method !== "GET" && method !== "HEAD";
+        const headers = new Headers(init.headers || undefined);
+        if (shouldProtect && !headers.has("X-CSRF-Token")) {
+            headers.set("X-CSRF-Token", csrfToken);
+        }
+        return originalFetch(input, { ...init, headers });
+    };
+}
+
 const modal = document.getElementById("adminModal");
 const modalTitle = document.getElementById("adminModalTitle");
 const modalBody = document.getElementById("adminModalBody");
@@ -424,6 +439,7 @@ document.addEventListener("click", (event) => {
         const action = deleteButton.dataset.deleteAction;
         openModal(title, `
             <form method="POST" action="${action}" class="space-y-5">
+                ${csrfToken ? `<input type="hidden" name="csrf_token" value="${csrfToken}">` : ""}
                 <p class="text-sm text-slate-600">${message}</p>
                 <div class="flex justify-end gap-2">
                     <button type="button" data-modal-close class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Отмена</button>

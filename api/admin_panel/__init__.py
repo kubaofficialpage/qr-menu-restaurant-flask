@@ -1,6 +1,14 @@
-from flask import Blueprint
+from flask import Blueprint, request
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
+
+
+@admin.before_request
+def csrf_protect():
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        from .auth import validate_csrf
+
+        validate_csrf()
 
 from . import auth  # noqa: E402,F401
 from . import utils  # noqa: E402,F401

@@ -112,6 +112,7 @@
                         <td class="px-4 py-3 text-sm text-slate-600">{{ item.category_name or "Без категории" }}</td>
                         <td class="px-4 py-3">
                             <form method="POST" action="{{ url_for('admin.toggle_menu_item_available', id=item.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                 <label class="inline-flex cursor-pointer items-center gap-2">
                                     <input type="checkbox" name="is_available" class="peer sr-only" {% if item.is_available %}checked{% endif %} onchange="this.form.submit()">
                                     <span class="relative h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-emerald-500 peer-checked:after:translate-x-5"></span>
@@ -146,6 +147,7 @@
 
 <template id="categoryCreateTemplate">
     <form method="POST" action="{{ url_for('admin.add_category') }}" class="space-y-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div>
             <label class="block text-sm font-medium text-slate-700">Название</label>
             <input name="name" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
@@ -160,6 +162,7 @@
 {% for category in categories %}
 <template id="categoryEditTemplate{{ category.id }}">
     <form method="POST" action="{{ url_for('admin.edit_category', id=category.id) }}" class="space-y-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div>
             <label class="block text-sm font-medium text-slate-700">Название</label>
             <input name="name" value="{{ category.name }}" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
@@ -174,6 +177,7 @@
 
 <template id="menuItemCreateTemplate">
     <form method="POST" action="{{ url_for('admin.add_menu_item') }}" enctype="multipart/form-data" class="space-y-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         {% include "admin/partials/menu_item_form_fields.html" %}
         <div class="flex justify-end gap-2">
             <button type="button" data-modal-close class="rounded-md border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Отмена</button>
@@ -185,6 +189,7 @@
 {% for item in menu_items %}
 <template id="menuItemEditTemplate{{ item.id }}">
     <form method="POST" action="{{ url_for('admin.edit_menu_item', id=item.id) }}" enctype="multipart/form-data" class="space-y-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="current_image" value="{{ item.image or '' }}">
         {% set menu_item = item %}
         {% include "admin/partials/menu_item_form_fields.html" %}

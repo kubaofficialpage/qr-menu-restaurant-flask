@@ -6,13 +6,12 @@ from database.db import get_session
 from database.models import User
 
 from . import admin
-from .auth import rotate_csrf_token, validate_csrf
+from .auth import rotate_csrf_token
 
 
 @admin.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        validate_csrf()
         email = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
 
@@ -36,6 +35,5 @@ def login():
 
 @admin.route("/logout", methods=["POST"])
 def logout():
-    validate_csrf()
     session.clear()
     return redirect(url_for("admin.login"))

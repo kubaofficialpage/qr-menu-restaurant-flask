@@ -41,7 +41,11 @@ def rotate_csrf_token():
 
 
 def validate_csrf():
-    sent = request.form.get("csrf_token", "")
+    sent = (
+        request.headers.get("X-CSRF-Token", "")
+        or request.form.get("csrf_token", "")
+        or (request.get_json(silent=True, cache=False) or {}).get("csrf_token", "")
+    )
     token = session.get("csrf_token", "")
     if not sent or not token or sent != token:
         abort(400)

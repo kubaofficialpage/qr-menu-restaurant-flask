@@ -9,7 +9,7 @@ from database.models import Category, MenuItem
 from services.menu_seed_generator import generate_menu_seed
 
 from . import admin
-from .auth import login_required, validate_csrf
+from .auth import login_required
 from .queries import require_restaurant
 from .utils import safe_int
 
@@ -62,7 +62,6 @@ def generate_menu_seed_api():
 @admin.route("/menu-generator/import", methods=["POST"])
 @login_required
 def import_generated_menu():
-    validate_csrf()
     restaurant = require_restaurant()
     if not restaurant:
         return redirect(url_for("admin.dashboard"))
