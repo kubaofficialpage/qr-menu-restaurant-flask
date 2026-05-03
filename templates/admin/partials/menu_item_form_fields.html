@@ -7,7 +7,7 @@
     <div class="sm:col-span-2">
         <div class="flex items-center justify-between gap-3">
             <label class="block text-sm font-medium text-slate-700">Описание</label>
-            <button type="button" data-generate-description class="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Сгенерировать</button>
+            <button type="button" data-generate-description data-generate-description-url="{{ url_for('admin.generate_menu_item_description') }}" class="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Сгенерировать</button>
         </div>
         <textarea name="description" rows="3" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">{{ menu_item.description if menu_item is defined and menu_item.description else '' }}</textarea>
     </div>

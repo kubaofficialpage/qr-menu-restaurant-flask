@@ -13,7 +13,7 @@
             </p>
         </div>
 
-        <form id="menuGeneratorForm" class="mt-6 space-y-5">
+        <form id="menuGeneratorForm" class="mt-6 space-y-5" data-menu-generator-api-url="{{ url_for('admin.generate_menu_seed_api') }}">
             <div>
                 <label class="block text-sm font-medium text-slate-700">Ресторан</label>
                 <input value="{{ restaurant.name }}" disabled class="mt-1 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-slate-600">
@@ -87,8 +87,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    window.MENU_GENERATOR_API_URL = {{ url_for('admin.generate_menu_seed_api')|tojson }};
-</script>
 <script type="module" src="/static/js/admin-menu-generator.js"></script>
 {% endblock %}

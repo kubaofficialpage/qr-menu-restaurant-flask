@@ -25,7 +25,15 @@ function openModal(title, html) {
 }
 
 function showFlashMessages() {
-    const messages = window.ADMIN_FLASH_MESSAGES || [];
+    let messages = window.ADMIN_FLASH_MESSAGES || [];
+    const messagesEl = document.getElementById("adminFlashMessages");
+    if (messagesEl && messagesEl.textContent) {
+        try {
+            messages = JSON.parse(messagesEl.textContent) || [];
+        } catch (error) {
+            console.error("Failed to parse admin flash messages", error);
+        }
+    }
     messages.forEach(([category, message]) => {
         showToast(message, category === "error" ? "error" : "success");
     });

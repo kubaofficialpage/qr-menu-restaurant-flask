@@ -1,0 +1,18 @@
+{% macro lang_switcher(button_class="") -%}
+<div id="langSwitcher" class="relative">
+    <button
+        id="langSwitcherBtn"
+        type="button"
+        class="{{ button_class }}"
+        aria-label="Language"
+        aria-haspopup="true"
+        aria-expanded="false">
+        RU
+    </button>
+    <div id="langSwitcherMenu" class="hidden absolute right-0 top-full mt-2 bg-white border rounded-xl shadow-lg overflow-hidden z-30">
+        <a href="#" data-lang="ru" class="block px-4 py-2 hover:bg-gray-50">RU</a>
+        <a href="#" data-lang="en" class="block px-4 py-2 hover:bg-gray-50">EN</a>
+        <a href="#" data-lang="ky" class="block px-4 py-2 hover:bg-gray-50">KY</a>
+    </div>
+</div>
+{%- endmacro %}

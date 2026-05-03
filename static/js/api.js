@@ -1,18 +1,19 @@
 import { renderCategories, renderMenu } from './render.js';
 import { getById } from './dom.js';
 import { logError } from './logger.js';
-import { state } from './state.js';
+import { state } from "./state.js";
+import { getRestaurantSlug } from "./page-context.js";
 import { setMenuData } from './state.js';
 import { showToast } from './toast.js';
 import { t } from './i18n.js';
 
 const MENU_REQUEST_TIMEOUT_MS = 8000;
-const MENU_CACHE_KEY = window.RESTAURANT_SLUG ? `qr_menu_cache:${window.RESTAURANT_SLUG}` : "qr_menu_cache:default";
 
 export function fetchMenuData() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), MENU_REQUEST_TIMEOUT_MS);
-    const slug = window.RESTAURANT_SLUG;
+    const slug = getRestaurantSlug();
+    const menuCacheKey = slug ? `qr_menu_cache:${slug}` : "qr_menu_cache:default";
     const endpoint = slug ? `/api/${encodeURIComponent(slug)}/menu` : "/api/menu";
 
     return fetch(endpoint, { signal: controller.signal })
@@ -25,7 +26,7 @@ export function fetchMenuData() {
         .then(data => {
             state.restaurant = data.restaurant || null;
             setMenuData(data.menu || [], data.categories || []);
-            saveMenuCache(data);
+            saveMenuCache(menuCacheKey, data);
             return data;
         })
         .finally(() => clearTimeout(timeoutId));
@@ -39,8 +40,10 @@ export function loadMenuData() {
             return data;
         })
         .catch(error => {
-            logError("menu:load", error, { slug: window.RESTAURANT_SLUG || null });
-            const cached = loadMenuCache();
+            const slug = getRestaurantSlug();
+            const menuCacheKey = slug ? `qr_menu_cache:${slug}` : "qr_menu_cache:default";
+            logError("menu:load", error, { slug });
+            const cached = loadMenuCache(menuCacheKey);
             if (cached) {
                 state.restaurant = cached.restaurant || null;
                 setMenuData(cached.menu || [], cached.categories || []);
@@ -68,17 +71,17 @@ function renderMenuError() {
     `;
 }
 
-function saveMenuCache(data) {
+function saveMenuCache(key, data) {
     try {
-        sessionStorage.setItem(MENU_CACHE_KEY, JSON.stringify(data));
+        sessionStorage.setItem(key, JSON.stringify(data));
     } catch (error) {
         logError("menu:cache-save", error);
     }
 }
 
-function loadMenuCache() {
+function loadMenuCache(key) {
     try {
-        const raw = sessionStorage.getItem(MENU_CACHE_KEY);
+        const raw = sessionStorage.getItem(key);
         return raw ? JSON.parse(raw) : null;
     } catch (error) {
         logError("menu:cache-load", error);

@@ -1,4 +1,13 @@
-const dashboardData = window.DASHBOARD_DATA || {};
+let dashboardData = window.DASHBOARD_DATA || {};
+
+const dashboardJson = document.getElementById("dashboardData");
+if (dashboardJson && dashboardJson.textContent) {
+    try {
+        dashboardData = JSON.parse(dashboardJson.textContent);
+    } catch (error) {
+        console.error("Failed to parse dashboard data", error);
+    }
+}
 
 if (window.Chart && dashboardData.selected_restaurant) {
     Chart.defaults.font.family = "Montserrat, system-ui, sans-serif";

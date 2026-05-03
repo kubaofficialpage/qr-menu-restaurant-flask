@@ -33,7 +33,7 @@ app.register_blueprint(admin)
 @app.route("/")
 def home():
     restaurants = get_active_restaurants()
-    return render_template("landing.html", restaurants=restaurants)
+    return render_template("client/landing.html", restaurants=restaurants)
 
 @app.route("/cart")
 def cart():
@@ -47,8 +47,8 @@ def restaurant_home(restaurant_slug):
     session_id = get_or_create_analytics_session(session)
     record_restaurant_visit(restaurant["id"], session_id, request.path)
     if not restaurant.get("is_active"):
-        return render_template("restaurant_unavailable.html", restaurant=restaurant), 503
-    return render_template("index.html", restaurant=restaurant)
+        return render_template("client/restaurant_unavailable.html", restaurant=restaurant), 503
+    return render_template("client/index.html", restaurant=restaurant)
 
 @app.route("/<restaurant_slug>/cart")
 def restaurant_cart(restaurant_slug):
@@ -56,12 +56,12 @@ def restaurant_cart(restaurant_slug):
     if not restaurant:
         abort(404)
     if not restaurant.get("is_active"):
-        return render_template("restaurant_unavailable.html", restaurant=restaurant), 503
-    return render_template("cart.html", restaurant=restaurant)
+        return render_template("client/restaurant_unavailable.html", restaurant=restaurant), 503
+    return render_template("client/cart.html", restaurant=restaurant)
 
 @app.errorhandler(404)
 def page_not_found(error):
-    return render_template("404.html"), 404
+    return render_template("client/404.html"), 404
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)

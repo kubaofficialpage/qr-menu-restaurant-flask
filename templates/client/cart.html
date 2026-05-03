@@ -1,20 +1,12 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9, user-scalable=no">
-<title>Корзина</title>
+{% extends "client/base.html" %}
 
-<script src="https://cdn.tailwindcss.com"></script>
+{% import "client/partials/ui_macros.html" as client_ui %}
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<link rel="stylesheet" href="/static/css/app.css">
-</head>
+{% block title %}Корзина{% endblock %}
+{% block meta_viewport %}<meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9, user-scalable=no">{% endblock %}
+{% block body_class %}bg-white min-h-screen text-slate-900{% endblock %}
 
-<body class="bg-white min-h-screen text-slate-900">
+{% block body %}
 <div class="cart-page min-h-screen pb-28">
     <header class="cart-page-top sticky top-0 z-20 bg-white/95 backdrop-blur px-4 py-3">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
@@ -23,22 +15,7 @@
             </a>
             <h1 class="text-xl font-bold" data-i18n="cart_title">Корзина</h1>
             <div class="flex items-center gap-2">
-                <div id="langSwitcher" class="relative">
-                    <button
-                        id="langSwitcherBtn"
-                        type="button"
-                        class="w-10 h-10 bg-white border rounded-xl flex items-center justify-center"
-                        aria-label="Language"
-                        aria-haspopup="true"
-                        aria-expanded="false">
-                        RU
-                    </button>
-                    <div id="langSwitcherMenu" class="hidden absolute right-0 top-full mt-2 bg-white border rounded-xl shadow-lg overflow-hidden z-30">
-                        <a href="#" data-lang="ru" class="block px-4 py-2 hover:bg-gray-50">RU</a>
-                        <a href="#" data-lang="en" class="block px-4 py-2 hover:bg-gray-50">EN</a>
-                        <a href="#" data-lang="ky" class="block px-4 py-2 hover:bg-gray-50">KY</a>
-                    </div>
-                </div>
+                {{ client_ui.lang_switcher("w-10 h-10 bg-white border rounded-xl flex items-center justify-center") }}
                 <button id="splitBillPageBtn" data-cart-tour="split" class="w-10 h-10 bg-white border rounded-xl flex items-center justify-center text-gray-800" aria-label="Разделить счет">
                     <i class="fa-solid fa-code-branch" aria-hidden="true"></i>
                 </button>
@@ -106,9 +83,9 @@
     </div>
 </div>
 
-<script>
-    window.RESTAURANT_SLUG = {% if restaurant %}{{ restaurant.slug|tojson }}{% else %}null{% endif %};
-</script>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/json" id="restaurantSlug">{% if restaurant %}{{ restaurant.slug|tojson }}{% else %}null{% endif %}</script>
 <script type="module" src="/static/js/cart-page.js"></script>
-</body>
-</html>
+{% endblock %}

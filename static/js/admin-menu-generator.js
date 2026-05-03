@@ -84,6 +84,12 @@ async function handleGenerate(event) {
     event.preventDefault();
     if (!form) return;
 
+    const apiUrl = form.dataset.menuGeneratorApiUrl || window.MENU_GENERATOR_API_URL;
+    if (!apiUrl) {
+        showToast("Не задан URL генератора меню.", "error");
+        return;
+    }
+
     const formData = new FormData(form);
     const payload = {
         cuisine: String(formData.get("cuisine") || "").trim(),
@@ -102,7 +108,7 @@ async function handleGenerate(event) {
     generateButton.textContent = "Генерация...";
 
     try {
-        const response = await fetch(window.MENU_GENERATOR_API_URL, {
+        const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

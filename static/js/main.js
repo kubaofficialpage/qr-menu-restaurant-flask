@@ -1,6 +1,7 @@
 import { loadMenuData } from './api.js';
 import { addItem, removeItem, updateCart } from './cart.js';
 import { getById } from './dom.js';
+import { getRestaurantSlug } from './page-context.js';
 import { initImageLoading } from './image.js';
 import { logError } from './logger.js';
 import { openItemModal, closeItemModal, bgClose } from './modal.js';
@@ -12,6 +13,7 @@ import { state } from './state.js';
 import { lockPageScroll, unlockPageScroll } from './scroll-lock.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    getRestaurantSlug();
     initI18n("ru");
     applyTranslations();
     bindLangSwitcher();

@@ -1,6 +1,7 @@
 import { fetchMenuData } from './api.js';
 import { getById } from './dom.js';
 import { state, loadCartFromStorage, saveCartToStorage } from './state.js';
+import { getRestaurantSlug } from './page-context.js';
 import {
     IMAGE_PLACEHOLDER,
     escapeHtml,
@@ -24,6 +25,7 @@ let cartTourStep = 0;
 let cartTourPositionFrame = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
+    getRestaurantSlug();
     initI18n("ru");
     applyTranslations();
     bindLangSwitcher();

@@ -1,20 +1,12 @@
-<!DOCTYPE html>
-<html lang="ru">
+{% extends "client/base.html" %}
 {% import "admin/partials/ui_macros.html" as ui %}
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>qrmenu Кыргызстан</title>
+{% import "client/partials/ui_macros.html" as client_ui %}
 
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<link rel="stylesheet" href="/static/css/app.css">
-</head>
+{% block title %}qrmenu Кыргызстан{% endblock %}
+{% block meta_viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">{% endblock %}
+{% block body_class %}bg-white text-slate-900{% endblock %}
 
-<body class="bg-white text-slate-900">
+{% block body %}
 <div class="min-h-screen bg-white">
 <div class="mx-auto max-w-7xl">
     <div class="sticky top-0 z-20 mb-4 bg-white/90 px-4 pt-4 pb-3 backdrop-blur supports-[backdrop-filter]:bg-white/80">
@@ -45,22 +37,7 @@
             </div>
         </div>
 
-        <div id="langSwitcher" class="relative">
-            <button
-                id="langSwitcherBtn"
-                type="button"
-                class="bg-white border rounded-xl px-3 h-full flex items-center justify-center"
-                aria-label="Language"
-                aria-haspopup="true"
-                aria-expanded="false">
-                RU
-            </button>
-            <div id="langSwitcherMenu" class="hidden absolute right-0 top-full mt-2 bg-white border rounded-xl shadow-lg overflow-hidden z-30">
-                <a href="#" data-lang="ru" class="block px-4 py-2 hover:bg-gray-50">RU</a>
-                <a href="#" data-lang="en" class="block px-4 py-2 hover:bg-gray-50">EN</a>
-                <a href="#" data-lang="ky" class="block px-4 py-2 hover:bg-gray-50">KY</a>
-            </div>
-        </div>
+        {{ client_ui.lang_switcher("bg-white border rounded-xl px-3 h-full flex items-center justify-center") }}
 
         <a href="{% if restaurant %}/{{ restaurant.slug }}/cart{% else %}/cart{% endif %}" class="relative bg-white border rounded-xl px-4 flex items-center" aria-label="Открыть корзину" data-i18n-aria-label="cart_open_aria">
             <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
@@ -223,9 +200,9 @@
     </div>
 </div>
 
-<script>
-    window.RESTAURANT_SLUG = {% if restaurant %}{{ restaurant.slug|tojson }}{% else %}null{% endif %};
-</script>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/json" id="restaurantSlug">{% if restaurant %}{{ restaurant.slug|tojson }}{% else %}null{% endif %}</script>
 <script type="module" src="/static/js/main.js"></script>
-</body>
-</html>
+{% endblock %}

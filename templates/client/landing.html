@@ -1,12 +1,9 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>qrmenu Кыргызстан</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="min-h-screen bg-neutral-950 text-white selection:bg-emerald-400/30 selection:text-white">
+{% extends "client/base.html" %}
+
+{% block title %}qrmenu Кыргызстан{% endblock %}
+{% block body_class %}min-h-screen bg-neutral-950 text-white selection:bg-emerald-400/30 selection:text-white{% endblock %}
+
+{% block body %}
     <header class="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-neutral-950/70 backdrop-blur">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
             <a href="/" class="flex items-center gap-3 font-semibold tracking-tight">
@@ -340,69 +337,8 @@
         }
     </style>
 
-    <script>
-        (() => {
-            const track = document.getElementById('partnersTrack');
-            if (!track) return;
+{% endblock %}
 
-            let offset = 0;
-            let speed = 0.45;
-            let raf = null;
-
-            const tick = () => {
-                const width = track.scrollWidth / 2;
-                offset -= speed;
-                if (Math.abs(offset) >= width) offset = 0;
-                track.style.transform = `translate3d(${offset}px,0,0)`;
-                raf = requestAnimationFrame(tick);
-            };
-
-            const stop = () => {
-                if (raf) cancelAnimationFrame(raf);
-                raf = null;
-            };
-
-            const start = () => {
-                if (!raf) raf = requestAnimationFrame(tick);
-            };
-
-            let dragging = false;
-            let startX = 0;
-            let startOffset = 0;
-
-            const onDown = (clientX) => {
-                dragging = true;
-                startX = clientX;
-                startOffset = offset;
-                stop();
-            };
-
-            const onMove = (clientX) => {
-                if (!dragging) return;
-                const dx = clientX - startX;
-                offset = startOffset + dx;
-                track.style.transform = `translate3d(${offset}px,0,0)`;
-            };
-
-            const onUp = () => {
-                dragging = false;
-                start();
-            };
-
-            track.addEventListener('pointerdown', (e) => {
-                track.setPointerCapture?.(e.pointerId);
-                onDown(e.clientX);
-            });
-            track.addEventListener('pointermove', (e) => onMove(e.clientX));
-            track.addEventListener('pointerup', onUp);
-            track.addEventListener('pointercancel', onUp);
-            track.addEventListener('mouseenter', stop);
-            track.addEventListener('mouseleave', () => {
-                if (!dragging) start();
-            });
-
-            start();
-        })();
-    </script>
-</body>
-</html>
+{% block scripts %}
+    <script type="module" src="/static/js/landing.js"></script>
+{% endblock %}
