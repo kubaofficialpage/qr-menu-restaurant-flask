@@ -19,6 +19,7 @@
 </div>
 
 <form id="restaurantEditForm" method="POST" action="{{ url_for('admin.edit_restaurant', restaurant_id=restaurant.id) }}" enctype="multipart/form-data" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% set restaurant_form = restaurant %}
     {% include "admin/partials/restaurant_form_fields.html" %}
 
