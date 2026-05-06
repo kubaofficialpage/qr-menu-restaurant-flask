@@ -10,14 +10,20 @@ function initTimers() {
             if (!createdAt) return;
             const created = new Date(createdAt);
             const diffMs = Math.max(0, Date.now() - created.getTime());
-            const totalMinutes = Math.floor(diffMs / 60000);
-            const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
-            const minutes = String(totalMinutes % 60).padStart(2, "0");
-            node.textContent = `${hours}:${minutes}`;
+            const totalSeconds = Math.floor(diffMs / 1000);
+            const hoursValue = Math.floor(totalSeconds / 3600);
+            const minutesValue = Math.floor((totalSeconds % 3600) / 60);
+            const secondsValue = totalSeconds % 60;
+
+            const hours = String(hoursValue).padStart(2, "0");
+            const minutes = String(minutesValue).padStart(2, "0");
+            const seconds = String(secondsValue).padStart(2, "0");
+
+            node.textContent = hoursValue > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
         });
     };
     tick();
-    setInterval(tick, 30000);
+    setInterval(tick, 1000);
 }
 
 function initSocket() {

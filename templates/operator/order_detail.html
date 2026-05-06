@@ -23,26 +23,38 @@
         <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
             <div class="grid gap-3 md:grid-cols-4">
                 <div class="rounded-2xl bg-slate-50 px-4 py-3">
-                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Статус</div>
+                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <i class="fa-solid fa-signal" aria-hidden="true"></i>
+                        <span>Статус</span>
+                    </div>
                     <div class="mt-1 text-lg font-bold text-slate-900">{{ status_labels[order.status] }}</div>
                 </div>
                 <div class="rounded-2xl bg-slate-50 px-4 py-3">
-                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Сумма</div>
+                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <i class="fa-solid fa-coins" aria-hidden="true"></i>
+                        <span>Сумма</span>
+                    </div>
                     <div class="mt-1 text-lg font-bold text-slate-900">{{ order.total_amount }} c</div>
                 </div>
                 <div class="rounded-2xl bg-slate-50 px-4 py-3">
-                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Оплата</div>
+                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
+                        <span>Оплата</span>
+                    </div>
                     <div class="mt-1 text-lg font-bold text-slate-900">{{ "Онлайн" if order.payment_type == "online" else "Наличные" }}</div>
                 </div>
                 <div class="rounded-2xl bg-slate-50 px-4 py-3">
-                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Таймер</div>
+                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <i class="fa-solid fa-stopwatch" aria-hidden="true"></i>
+                        <span>Таймер</span>
+                    </div>
                     <div class="mt-1 text-lg font-bold text-slate-900" data-order-timer data-created-at="{{ order.created_at.isoformat() }}">00:00</div>
                 </div>
             </div>
         </section>
 
         <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-            <h2 class="text-lg font-bold text-slate-900">Заказы</h2>
+            <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-bag-shopping mr-2" aria-hidden="true"></i>Заказы</h2>
             <div class="mt-4 space-y-3">
                 {% for item in order.items %}
                 <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
@@ -60,16 +72,13 @@
         </section>
 
         <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-            <h2 class="text-lg font-bold text-slate-900">Доставка</h2>
+            <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-truck-fast mr-2" aria-hidden="true"></i>Доставка</h2>
             <form method="POST" action="{{ url_for('operator.update_order', order_id=order.id) }}" class="mt-4 space-y-4">
                 <label class="block">
                     <span class="mb-1 block text-sm font-medium text-slate-700">Ссылка Яндекс Доставка</span>
-                    <input name="yandex_delivery_url" type="url" value="{{ order.yandex_delivery_url or '' }}" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400">
-                </label>
-                <label class="block">
-                    <span class="mb-1 block text-sm font-medium text-slate-700">Сумма доставки</span>
                     <div class="flex gap-2">
-                        <input name="delivery_fee" type="number" min="0" value="{{ order.delivery_fee }}" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400">
+                        <input name="yandex_delivery_url" type="url" value="{{ order.yandex_delivery_url or '' }}" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400">
+                        <input name="delivery_fee" type="hidden" value="{{ order.delivery_fee }}">
                         <button type="submit" class="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-emerald-600 text-white">
                             <i class="fa-solid fa-check" aria-hidden="true"></i>
                         </button>
@@ -80,7 +89,7 @@
         </section>
 
         <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-            <h2 class="text-lg font-bold text-slate-900">Клиент и чек</h2>
+            <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-user mr-2" aria-hidden="true"></i>Клиент и чек</h2>
             <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <div class="rounded-2xl bg-slate-50 px-4 py-4">
                     <div class="text-sm font-semibold text-slate-900">{{ order.customer.full_name if order.customer else "Гость" }}</div>

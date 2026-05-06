@@ -41,6 +41,15 @@
                 </div>
             </div>
 
+            {% if order.yandex_delivery_url %}
+            <div class="mt-4">
+                <a href="{{ order.yandex_delivery_url }}" target="_blank" class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                    <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                    Отследить заказ
+                </a>
+            </div>
+            {% endif %}
+
             <div class="mt-4 rounded-3xl bg-slate-50 px-4 py-4">
                 <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Адрес доставки</div>
                 <div class="mt-2 text-sm font-medium text-slate-900">{{ order.delivery_address }}</div>
