@@ -59,15 +59,19 @@ function initDataTables() {
 
     document.querySelectorAll(".js-data-table").forEach((table) => {
         if (table.dataset.dataTableReady === "true") return;
-        if (table.querySelector("[data-empty-row]")) return;
+        if (table.querySelector("tbody [data-empty-row]")) return;
 
         const columnCount = table.querySelectorAll("thead th").length;
         const actionColumnIndex = columnCount > 0 ? columnCount - 1 : 0;
 
-        new window.DataTable(table, {
+        const instance = new window.DataTable(table, {
             pageLength: 10,
             lengthMenu: [10, 25, 50, 100],
             order: [],
+            layout: {
+                topStart: null,
+                topEnd: null,
+            },
             columnDefs: [
                 {
                     targets: actionColumnIndex,
@@ -92,8 +96,84 @@ function initDataTables() {
             },
         });
 
+        table._dataTable = instance;
         table.dataset.dataTableReady = "true";
     });
+}
+
+function initOrdersTableTools() {
+    const table = document.getElementById("adminOrdersTable");
+    const searchInput = document.getElementById("adminOrdersSearch");
+    const statusFilter = document.getElementById("adminOrdersStatusFilter");
+    const paymentFilter = document.getElementById("adminOrdersPaymentFilter");
+    const exportBtn = document.getElementById("adminOrdersExportBtn");
+    const dataTable = table?._dataTable;
+
+    if (!table || !dataTable) return;
+
+    const extSearch = window.DataTable?.ext?.search;
+    if (!Array.isArray(extSearch)) return;
+
+    const customFilter = (settings, _searchData, rowIndex) => {
+        if (settings?.nTable !== table) return true;
+
+        const rowNode = settings.aoData?.[rowIndex]?.nTr;
+        if (!rowNode) return true;
+
+        const orderStatus = String(statusFilter?.value || "").trim();
+        const paymentStatus = String(paymentFilter?.value || "").trim();
+        const rowOrderStatus = rowNode.dataset.orderStatus || "";
+        const rowPaymentStatus = rowNode.dataset.paymentStatus || "";
+
+        const matchesOrderStatus = !orderStatus || rowOrderStatus === orderStatus;
+        const matchesPaymentStatus = !paymentStatus || rowPaymentStatus === paymentStatus;
+        return matchesOrderStatus && matchesPaymentStatus;
+    };
+
+    extSearch.push(customFilter);
+
+    const applyFilters = () => {
+        dataTable.search(String(searchInput?.value || "").trim()).draw();
+    };
+
+    searchInput?.addEventListener("input", applyFilters);
+    statusFilter?.addEventListener("change", applyFilters);
+    paymentFilter?.addEventListener("change", applyFilters);
+
+    exportBtn?.addEventListener("click", () => {
+        const headers = Array.from(table.querySelectorAll("thead th")).map((th) => sanitizeCsvValue(th.textContent));
+        const rows = dataTable.rows({ search: "applied" }).nodes().toArray()
+            .filter((row) => row.querySelector("td"))
+            .map((row) =>
+                Array.from(row.querySelectorAll("td")).map((cell) => sanitizeCsvValue(cell.dataset.exportValue || cell.textContent))
+            );
+
+        if (!rows.length) {
+            showToast("Нет данных для экспорта.", "error");
+            return;
+        }
+
+        const csv = [headers, ...rows]
+            .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+            .join("\n");
+
+        const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `orders-export-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showToast("CSV экспортирован.", "success");
+    });
+
+    applyFilters();
+}
+
+function sanitizeCsvValue(value) {
+    return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
 function closeModal() {
@@ -684,4 +764,5 @@ document.addEventListener("keydown", (event) => {
 
 showFlashMessages();
 initDataTables();
+initOrdersTableTools();
 initFormEnhancements();

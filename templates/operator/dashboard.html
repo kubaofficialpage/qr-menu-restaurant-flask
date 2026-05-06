@@ -42,7 +42,7 @@
     </header>
 
     <main class="mx-auto max-w-5xl px-4 py-5">
-        <div class="mb-4 flex items-center justify-between">
+        <div class="mb-4 flex items-center justify-between gap-3">
             <div>
                 <div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{{ "История" if tab == "history" else "Активные" }}</div>
                 <h1 class="text-2xl font-extrabold text-slate-900">{{ "История заказов" if tab == "history" else "Активные заказы" }}</h1>
@@ -95,14 +95,18 @@
     </main>
 
     <nav class="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div class="mx-auto grid max-w-5xl grid-cols-2">
+        <div class="mx-auto grid max-w-5xl grid-cols-3">
             <a href="{{ url_for('operator.dashboard', tab='active') }}" class="operator-bottom-nav {% if tab != 'history' %}is-active{% endif %}">
                 <i class="fa-solid fa-bolt" aria-hidden="true"></i>
-                <span>Активные заказы</span>
+                <span>Активные</span>
             </a>
             <a href="{{ url_for('operator.dashboard', tab='history') }}" class="operator-bottom-nav {% if tab == 'history' %}is-active{% endif %}">
                 <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
-                <span>История заказов</span>
+                <span>История</span>
+            </a>
+            <a href="{{ url_for('operator.stop_list') }}" class="operator-bottom-nav">
+                <i class="fa-solid fa-ban" aria-hidden="true"></i>
+                <span>Стоп-лист</span>
             </a>
         </div>
     </nav>

@@ -8,7 +8,7 @@ from werkzeug.security import check_password_hash
 
 from database.db import get_session, session_scope
 from database.extensions import socketio
-from database.models import Operator, Order, Restaurant, RestaurantBranch
+from database.models import Category, MenuItem, Operator, Order, Restaurant, RestaurantBranch
 
 from .delivery import ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, serialize_order, update_order_status_timestamps
 
@@ -56,6 +56,14 @@ def get_operator_orders(operator, history=False):
     return db_session.execute(query).unique().scalars().all()
 
 
+def operator_has_new_orders(operator):
+    db_session = get_session()
+    query = select(Order.id).where(Order.restaurant_id == operator.restaurant_id, Order.status == "new")
+    if operator.branch_id:
+        query = query.where(Order.branch_id == operator.branch_id)
+    return db_session.execute(query.limit(1)).first() is not None
+
+
 def format_order_duration(order):
     final_timestamp = order.completed_at or order.cancelled_at
     if not final_timestamp or not order.created_at:
@@ -65,6 +73,42 @@ def format_order_duration(order):
     hours, remainder = divmod(total_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def get_stop_list_groups(operator):
+    db_session = get_session()
+    categories = db_session.execute(
+        select(Category)
+        .where(Category.restaurant_id == operator.restaurant_id, Category.is_active.is_(True))
+        .order_by(Category.sort_order, Category.name)
+    ).scalars().all()
+    menu_items = db_session.execute(
+        select(MenuItem)
+        .options(joinedload(MenuItem.category))
+        .where(MenuItem.restaurant_id == operator.restaurant_id)
+        .order_by(MenuItem.category_id, MenuItem.sort_order, MenuItem.name)
+    ).scalars().all()
+
+    grouped = []
+    items_by_category_id = {}
+    uncategorized_items = []
+
+    for item in menu_items:
+        if item.category_id:
+            items_by_category_id.setdefault(item.category_id, []).append(item)
+        else:
+            uncategorized_items.append(item)
+
+    for category in categories:
+        category_items = items_by_category_id.get(category.id, [])
+        if not category_items:
+            continue
+        grouped.append({"id": category.id, "name": category.name, "items": category_items})
+
+    if uncategorized_items:
+        grouped.append({"id": "uncategorized", "name": "Без категории", "items": uncategorized_items})
+
+    return grouped
 
 
 @operator_bp.route("", methods=["GET", "POST"])
@@ -109,6 +153,23 @@ def dashboard():
         status_labels=ORDER_STATUS_LABELS,
         payment_status_labels=PAYMENT_STATUS_LABELS,
         format_order_duration=format_order_duration,
+    )
+
+
+@operator_bp.route("/stop-list")
+@operator_required
+def stop_list():
+    operator = current_operator()
+    groups = get_stop_list_groups(operator)
+    unavailable_count = sum(1 for group in groups for item in group["items"] if not item.is_available)
+    total_count = sum(len(group["items"]) for group in groups)
+    return render_template(
+        "operator/stop_list.html",
+        operator=operator,
+        groups=groups,
+        unavailable_count=unavailable_count,
+        total_count=total_count,
+        has_new_orders=operator_has_new_orders(operator),
     )
 
 
@@ -182,6 +243,23 @@ def update_order(order_id):
 
     emit_order_event(order, "operator_orders_changed")
     return redirect(url_for("operator.order_detail", order_id=order_id))
+
+
+@operator_bp.route("/stop-list/items/<int:item_id>/toggle", methods=["POST"])
+@operator_required
+def toggle_stop_list_item(item_id):
+    operator = current_operator()
+    is_available = request.form.get("is_available") == "on"
+
+    with session_scope() as db_session:
+        item = db_session.execute(
+            select(MenuItem).where(MenuItem.id == item_id, MenuItem.restaurant_id == operator.restaurant_id)
+        ).scalar_one_or_none()
+        if not item:
+            abort(404)
+        item.is_available = is_available
+
+    return redirect(url_for("operator.stop_list"))
 
 
 @socketio.on("join_operator_room")

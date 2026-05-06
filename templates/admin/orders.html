@@ -1,0 +1,108 @@
+{% extends "admin/base.html" %}
+{% import "admin/partials/ui_macros.html" as ui %}
+
+{% block title %}Заказы - Админка QR Menu{% endblock %}
+{% block page_title %}Заказы{% endblock %}
+
+{% block content %}
+<div class="mb-5">
+    <h2 class="text-2xl font-bold tracking-tight">Заказы ресторана</h2>
+    <p class="mt-1 text-sm text-slate-500">Список заказов доставки для {{ restaurant.name }}.</p>
+</div>
+
+<section class="mb-5 rounded-lg border border-slate-200 bg-white p-4" data-admin-orders-filters>
+    <div class="grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_220px_220px_180px]">
+        <label class="block">
+            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Поиск</span>
+            <input type="search" id="adminOrdersSearch" placeholder="Номер, клиент, телефон, адрес..." class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+        </label>
+        <label class="block">
+            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Статус заказа</span>
+            <select id="adminOrdersStatusFilter" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                <option value="">Все</option>
+                <option value="new">Новый</option>
+                <option value="accepted">Принят</option>
+                <option value="courier">Передан курьеру</option>
+                <option value="completed">Завершен</option>
+                <option value="cancelled">Отменен</option>
+            </select>
+        </label>
+        <label class="block">
+            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Статус оплаты</span>
+            <select id="adminOrdersPaymentFilter" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                <option value="">Все</option>
+                <option value="paid">Оплачено</option>
+                <option value="unpaid">Неоплачено</option>
+            </select>
+        </label>
+        <div class="flex items-end gap-2">
+            <button type="button" id="adminOrdersExportBtn" class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800">
+                {{ ui.icon("download", "h-4 w-4") }}
+                <span>Экспорт CSV</span>
+            </button>
+        </div>
+    </div>
+</section>
+
+<section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <div class="overflow-x-auto">
+        <table id="adminOrdersTable" class="js-data-table min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Заказ</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Клиент</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Филиал</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Оплата</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Статус</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Сумма</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Создан</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for order in orders %}
+                <tr data-order-status="{{ order.status }}" data-payment-status="{{ 'paid' if order.payment_status == 'paid' else 'unpaid' }}">
+                    <td class="px-4 py-3" data-export-value="{{ order.order_number }} {{ order.delivery_address }}">
+                        <div class="font-semibold text-slate-900">{{ order.order_number }}</div>
+                        <div class="text-sm text-slate-500">{{ order.delivery_address }}</div>
+                    </td>
+                    <td class="px-4 py-3" data-export-value="{{ (order.customer_name or 'Гость') ~ ' ' ~ (order.customer_phone or '') }}">
+                        <div class="text-sm font-semibold text-slate-900">{{ order.customer_name or "Гость" }}</div>
+                        <div class="text-sm text-slate-500">{{ order.customer_phone or "" }}</div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-slate-600" data-export-value="{{ order.branch_name or 'Без филиала' }}">{{ order.branch_name or "Без филиала" }}</td>
+                    <td class="px-4 py-3" data-export-value="{{ ('Онлайн' if order.payment_type == 'online' else 'Наличные') ~ ' / ' ~ ('Оплачено' if order.payment_status == 'paid' else 'Неоплачено') }}">
+                        <div class="text-sm text-slate-600">{{ "Онлайн" if order.payment_type == "online" else "Наличные" }}</div>
+                        <div class="mt-1">
+                            {% if order.payment_status == "paid" %}
+                            <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">Оплачено</span>
+                            {% else %}
+                            <span class="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">Неоплачено</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3" data-export-value="{% if order.status == 'new' %}Новый{% elif order.status == 'accepted' %}Принят{% elif order.status == 'courier' %}Передан курьеру{% elif order.status == 'completed' %}Завершен{% else %}Отменен{% endif %}">
+                        {% if order.status == "new" %}
+                        <span class="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">Новый</span>
+                        {% elif order.status == "accepted" %}
+                        <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">Принят</span>
+                        {% elif order.status == "courier" %}
+                        <span class="rounded-full bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700">Передан курьеру</span>
+                        {% elif order.status == "completed" %}
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">Завершен</span>
+                        {% else %}
+                        <span class="rounded-full bg-rose-100 px-2 py-1 text-xs font-medium text-rose-700">Отменен</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm font-semibold text-slate-900" data-export-value="{{ order.total_amount }}">{{ order.total_amount }} c</td>
+                    <td class="px-4 py-3 text-sm text-slate-600" data-export-value="{{ order.created_at or '' }}">{{ order.created_at or "" }}</td>
+                </tr>
+                {% else %}
+                <tr data-empty-row>
+                    <td colspan="7" class="px-4 py-12 text-center text-sm text-slate-500">Заказов пока нет.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

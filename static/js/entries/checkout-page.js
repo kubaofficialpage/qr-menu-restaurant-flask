@@ -15,6 +15,7 @@ const checkoutState = {
     authStep: "phone",
     orderAccordionOpen: true,
     receiptPreviewUrl: null,
+    receiptProgressTimer: null,
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -259,18 +260,18 @@ function updateReceiptPreview() {
     if (!file) {
         preview.src = "";
         preview.classList.add("hidden");
-        empty.classList.remove("hidden");
-        meta.textContent = "";
+        meta.textContent = "PNG, JPG или WEBP";
         meta.classList.add("hidden");
+        setReceiptProgress(0);
         return;
     }
 
     checkoutState.receiptPreviewUrl = URL.createObjectURL(file);
     preview.src = checkoutState.receiptPreviewUrl;
     preview.classList.remove("hidden");
-    empty.classList.add("hidden");
-    meta.textContent = `Файл: ${file.name} · ${formatFileSize(file.size)} · перед отправкой будет сжат в WEBP`;
+    meta.textContent = `Файл: ${file.name} · ${formatFileSize(file.size)}`;
     meta.classList.remove("hidden");
+    animateReceiptProgress();
 }
 
 async function getPreparedReceiptFile(file) {
@@ -355,6 +356,12 @@ function updateStep() {
     document.getElementById("checkoutBackBtn")?.classList.toggle("hidden", checkoutState.currentStep === 1);
     document.getElementById("checkoutNextBtn")?.classList.toggle("hidden", checkoutState.currentStep === 3);
     document.getElementById("checkoutSubmitBtn")?.classList.toggle("hidden", checkoutState.currentStep !== 3);
+
+    const actionsRow = document.getElementById("checkoutActionsRow");
+    if (actionsRow) {
+        actionsRow.classList.toggle("checkout-actions--step1", checkoutState.currentStep === 1);
+        actionsRow.classList.toggle("checkout-actions--split", checkoutState.currentStep !== 1);
+    }
 }
 
 function onNextStep() {
@@ -514,6 +521,7 @@ async function submitOrder(event) {
     checkoutState.isSubmitting = true;
     resetMessages();
     toggleSubmitting(true);
+    setReceiptProgress(100);
 
     const formData = new FormData();
     const addressInput = document.getElementById("checkoutAddress");
@@ -572,7 +580,12 @@ function toggleSubmitting(isSubmitting) {
     });
 
     if (submit) {
-        submit.textContent = isSubmitting ? "Оформляем..." : "Оформить заказ";
+        const label = submit.querySelector("span");
+        if (label) {
+            label.textContent = isSubmitting ? "Оформляем..." : "Оформить заказ";
+        } else {
+            submit.textContent = isSubmitting ? "Оформляем..." : "Оформить заказ";
+        }
     }
 }
 
@@ -614,6 +627,29 @@ function formatFileSize(size) {
         return `${Math.round(bytes / 1024)} KB`;
     }
     return `${bytes} B`;
+}
+
+function setReceiptProgress(value) {
+    const bar = document.getElementById("checkoutReceiptProgressBar");
+    if (!bar) return;
+    bar.style.width = `${Math.max(0, Math.min(100, Number(value) || 0))}%`;
+}
+
+function animateReceiptProgress() {
+    if (checkoutState.receiptProgressTimer) {
+        window.clearInterval(checkoutState.receiptProgressTimer);
+    }
+
+    let current = 0;
+    setReceiptProgress(current);
+    checkoutState.receiptProgressTimer = window.setInterval(() => {
+        current += 20;
+        setReceiptProgress(current);
+        if (current >= 100) {
+            window.clearInterval(checkoutState.receiptProgressTimer);
+            checkoutState.receiptProgressTimer = null;
+        }
+    }, 90);
 }
 
 function escapeHtml(value) {

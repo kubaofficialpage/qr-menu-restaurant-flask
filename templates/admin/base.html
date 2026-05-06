@@ -30,6 +30,25 @@
                     {{ ui.icon("close", "h-5 w-5") }}
                 </button>
             </div>
+            <div class="border-b border-slate-200 p-4">
+                <div class="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Выбор ресторана</div>
+                <button type="button" data-modal-template="restaurantSelectTemplate" data-modal-title="Выберите ресторан" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-slate-300 hover:bg-white">
+                    <div class="flex items-center gap-3">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
+                            {{ ui.icon("store", "h-4 w-4") }}
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            {% if current_restaurant %}
+                            <span class="block truncate text-sm font-semibold text-slate-900">{{ current_restaurant.name }}</span>
+                            <span class="block truncate text-xs text-slate-500">/{{ current_restaurant.slug }}</span>
+                            {% else %}
+                            <span class="block text-sm font-semibold text-slate-900">Ресторан не выбран</span>
+                            <span class="block text-xs text-slate-500">Нажмите, чтобы выбрать</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </button>
+            </div>
             <nav class="p-4 space-y-1">
                 <a href="{{ url_for('admin.dashboard') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-slate-100 {% if request.endpoint == 'admin.dashboard' %}bg-slate-900 text-white hover:bg-slate-900{% endif %}">
                     {{ ui.icon("home", "h-4 w-4 shrink-0") }}
@@ -46,6 +65,10 @@
                 <a href="{{ url_for('admin.operators') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-slate-100 {% if request.endpoint == 'admin.operators' %}bg-slate-900 text-white hover:bg-slate-900{% endif %}">
                     {{ ui.icon("users", "h-4 w-4 shrink-0") }}
                     <span>Операторы</span>
+                </a>
+                <a href="{{ url_for('admin.orders') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-slate-100 {% if request.endpoint == 'admin.orders' %}bg-slate-900 text-white hover:bg-slate-900{% endif %}">
+                    {{ ui.icon("bag", "h-4 w-4 shrink-0") }}
+                    <span>Заказы</span>
                 </a>
                 <a href="{{ url_for('admin.menu_generator') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-slate-100 {% if request.endpoint == 'admin.menu_generator' %}bg-slate-900 text-white hover:bg-slate-900{% endif %}">
                     {{ ui.icon("sparkles", "h-4 w-4 shrink-0") }}

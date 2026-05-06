@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.security import generate_password_hash
 
 from database.db import get_session, session_scope
-from database.models import Operator, RestaurantBranch
+from database.models import Operator, Order, RestaurantBranch
 
 from . import admin
 from .auth import login_required
@@ -26,6 +26,35 @@ def serialize_operator(operator):
     data = model_to_dict(operator)
     data["branch_name"] = operator.branch.name if operator.branch else None
     return data
+
+
+def serialize_order(order):
+    data = model_to_dict(order)
+    data["branch_name"] = order.branch.name if order.branch else None
+    data["customer_name"] = order.customer.full_name if order.customer else None
+    data["customer_phone"] = order.customer.phone_whatsapp if order.customer else None
+    return data
+
+
+@admin.route("/orders")
+@login_required
+def orders():
+    restaurant = require_restaurant()
+    if not restaurant:
+        return redirect(url_for("admin.dashboard"))
+
+    db_session = get_session()
+    order_models = db_session.execute(
+        select(Order)
+        .options(joinedload(Order.branch), joinedload(Order.customer))
+        .where(Order.restaurant_id == restaurant["id"])
+        .order_by(Order.created_at.desc())
+    ).unique().scalars().all()
+    return render_template(
+        "admin/orders.html",
+        restaurant=restaurant,
+        orders=[serialize_order(order) for order in order_models],
+    )
 
 
 @admin.route("/branches")
