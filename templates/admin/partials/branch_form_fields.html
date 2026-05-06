@@ -1,0 +1,30 @@
+<div class="space-y-5">
+    <div class="grid gap-4 md:grid-cols-2">
+        <div>
+            <label class="block text-sm font-medium text-slate-700">Название филиала</label>
+            <input name="name" value="{{ branch_form.name if branch_form is defined else '' }}" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+        </div>
+        <label class="flex items-center gap-2 pt-7">
+            <input type="checkbox" name="is_active" {% if branch_form is not defined or branch_form.is_active %}checked{% endif %}>
+            <span class="text-sm text-slate-700">Активен</span>
+        </label>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-slate-700">Адрес</label>
+        <textarea name="address" rows="3" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">{{ branch_form.address if branch_form is defined else '' }}</textarea>
+    </div>
+
+    <div>
+        {% set upload_label = "QR код для оплаты" %}
+        {% set upload_name = "qr_code" %}
+        {% set upload_current_src = "/static/resource/" ~ branch_form.qr_code_image if branch_form is defined and branch_form.qr_code_image else none %}
+        {% set upload_alt = branch_form.name if branch_form is defined else "QR code" %}
+        {% set upload_preview_box_class = "h-28 w-full rounded-md sm:w-32" %}
+        {% set upload_placeholder_kind = "image" %}
+        {% set upload_title = "Перетащите QR код сюда" %}
+        {% set upload_hint = "или нажмите, чтобы выбрать PNG, JPG, WEBP" %}
+        {% set upload_current_label = "Текущий QR код" %}
+        {% include "admin/partials/image_upload_field.html" %}
+    </div>
+</div>

@@ -1,13 +1,14 @@
 {% extends "client/base.html" %}
 {% import "admin/partials/ui_macros.html" as ui %}
 {% import "client/partials/ui_macros.html" as client_ui %}
+{% import "client/partials/mobile_nav.html" as nav_ui %}
 
 {% block title %}qrmenu Кыргызстан{% endblock %}
 {% block meta_viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">{% endblock %}
 {% block body_class %}bg-white text-slate-900{% endblock %}
 
 {% block body %}
-<div class="min-h-screen bg-white">
+<div class="min-h-screen bg-white pb-24 md:pb-0">
 <div class="mx-auto max-w-7xl">
     <div class="sticky top-0 z-20 mb-4 bg-white/90 px-4 pt-4 pb-3 backdrop-blur supports-[backdrop-filter]:bg-white/80">
     <div class="flex gap-2">
@@ -71,11 +72,13 @@
 </div>
 </div>
 
+{{ nav_ui.mobile_nav(restaurant, "menu") }}
+
 <button
     id="restaurantInfoBtn"
     type="button"
     data-action="openRestaurantInfo"
-    class="fixed bottom-5 right-5 z-40 h-12 w-12 rounded-full bg-white border shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition"
+    class="fixed bottom-24 right-5 z-40 h-12 w-12 rounded-full bg-white border shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition md:bottom-5"
     aria-label="Информация о ресторане"
     data-i18n-aria-label="restaurant_info_btn_aria">
     <i class="fa-solid fa-circle-info text-gray-800 text-xl" aria-hidden="true"></i>

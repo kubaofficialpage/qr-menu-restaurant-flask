@@ -22,3 +22,4 @@ from . import routes_menu_generator  # noqa: E402,F401
 from . import routes_restaurants  # noqa: E402,F401
 from . import routes_users  # noqa: E402,F401
 from . import routes_menu  # noqa: E402,F401
+from . import routes_delivery  # noqa: E402,F401

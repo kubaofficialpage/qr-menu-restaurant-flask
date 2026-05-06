@@ -1,0 +1,31 @@
+{% extends "operator/base.html" %}
+
+{% block title %}Вход оператора{% endblock %}
+
+{% block body %}
+<div class="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#dcfce7,transparent_38%),linear-gradient(180deg,#f8fafc,#eef2ff)] px-4">
+    <div class="w-full max-w-md rounded-[28px] bg-white p-7 shadow-[0_30px_90px_rgba(15,23,42,0.12)]">
+        <div class="mb-6">
+            <div class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">QR Menu</div>
+            <h1 class="mt-2 text-3xl font-extrabold text-slate-900">Вход в /operator</h1>
+            <p class="mt-2 text-sm text-slate-500">Оператор видит активные заказы своего филиала и может менять их статус в реальном времени.</p>
+        </div>
+
+        {% if error %}
+        <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" class="space-y-4">
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-slate-700">Логин</span>
+                <input name="login" type="text" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400">
+            </label>
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-slate-700">Пароль</span>
+                <input name="password" type="password" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400">
+            </label>
+            <button type="submit" class="w-full rounded-2xl bg-slate-900 px-5 py-3 font-semibold text-white">Войти</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

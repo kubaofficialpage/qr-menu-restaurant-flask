@@ -1,0 +1,23 @@
+{% macro mobile_nav(restaurant, active) -%}
+{% set slug = restaurant.slug if restaurant else None %}
+<nav class="client-mobile-nav fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
+    <div class="grid grid-cols-4">
+        <a href="/{{ slug }}" class="client-mobile-nav__link {% if active == 'menu' %}is-active{% endif %}">
+            <i class="fa-solid fa-utensils" aria-hidden="true"></i>
+            <span>Меню</span>
+        </a>
+        <a href="/{{ slug }}/cart" class="client-mobile-nav__link {% if active == 'cart' %}is-active{% endif %}">
+            <i class="fa-solid fa-basket-shopping" aria-hidden="true"></i>
+            <span>Корзина</span>
+        </a>
+        <a href="/{{ slug }}/orders" class="client-mobile-nav__link {% if active == 'orders' %}is-active{% endif %}">
+            <i class="fa-solid fa-receipt" aria-hidden="true"></i>
+            <span>Заказы</span>
+        </a>
+        <a href="/{{ slug }}/me" class="client-mobile-nav__link {% if active == 'profile' %}is-active{% endif %}">
+            <i class="fa-solid fa-user" aria-hidden="true"></i>
+            <span>Я</span>
+        </a>
+    </div>
+</nav>
+{%- endmacro %}

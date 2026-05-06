@@ -5,9 +5,11 @@ from flask import Flask, abort, redirect, render_template, request, session, url
 from dotenv import load_dotenv
 from api.menu import get_active_restaurants, get_restaurant_by_slug, get_restaurant_by_slug_any_status, menu_api
 from api.admin_panel import admin
+from api.delivery import delivery_api
+from api.operator import operator_bp
 from config import SQLALCHEMY_DATABASE_URI
 from database.analytics import get_or_create_analytics_session, record_restaurant_visit
-from database.extensions import db, migrate
+from database.extensions import db, migrate, socketio
 import database.models
 
 load_dotenv()
@@ -26,9 +28,12 @@ app.config.update(
 
 db.init_app(app)
 migrate.init_app(app, db, directory="migrations")
+socketio.init_app(app, cors_allowed_origins="*")
 
 app.register_blueprint(menu_api)
+app.register_blueprint(delivery_api)
 app.register_blueprint(admin)
+app.register_blueprint(operator_bp)
 
 @app.route("/")
 def home():
@@ -64,4 +69,4 @@ def page_not_found(error):
     return render_template("client/404.html"), 404
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)

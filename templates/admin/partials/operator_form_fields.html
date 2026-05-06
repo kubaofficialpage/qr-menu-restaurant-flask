@@ -1,0 +1,52 @@
+<div class="space-y-5">
+    <div class="grid gap-4 md:grid-cols-2">
+        <div>
+            <label class="block text-sm font-medium text-slate-700">ФИО</label>
+            <input name="full_name" value="{{ operator_form.full_name if operator_form is defined else '' }}" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">Должность</label>
+            <input name="position" value="{{ operator_form.position if operator_form is defined else 'Оператор' }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+        </div>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+        <div>
+            <label class="block text-sm font-medium text-slate-700">Логин</label>
+            <input name="login" value="{{ operator_form.login if operator_form is defined else '' }}" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{% if operator_form is defined %}Новый пароль{% else %}Пароль{% endif %}</label>
+            <input name="password" type="password" {% if operator_form is not defined %}required{% endif %} class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+        </div>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+        <div>
+            <label class="block text-sm font-medium text-slate-700">Филиал</label>
+            <select name="branch_id" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+                <option value="">Без филиала</option>
+                {% for branch in branches %}
+                <option value="{{ branch.id }}" {% if operator_form is defined and operator_form.branch_id == branch.id %}selected{% endif %}>{{ branch.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <label class="flex items-center gap-2 pt-7">
+            <input type="checkbox" name="is_active" {% if operator_form is not defined or operator_form.is_active %}checked{% endif %}>
+            <span class="text-sm text-slate-700">Активен</span>
+        </label>
+    </div>
+
+    <div>
+        {% set upload_label = "Аватар оператора" %}
+        {% set upload_name = "avatar" %}
+        {% set upload_current_src = "/static/resource/" ~ operator_form.avatar if operator_form is defined and operator_form.avatar else none %}
+        {% set upload_alt = operator_form.full_name if operator_form is defined else "Аватар оператора" %}
+        {% set upload_preview_box_class = "h-28 w-full rounded-full sm:h-24 sm:w-24" %}
+        {% set upload_placeholder_kind = "avatar" %}
+        {% set upload_title = "Перетащите аватар сюда" %}
+        {% set upload_hint = "или нажмите, чтобы выбрать PNG, JPG, WEBP" %}
+        {% set upload_current_label = "Текущий аватар" %}
+        {% include "admin/partials/image_upload_field.html" %}
+    </div>
+</div>

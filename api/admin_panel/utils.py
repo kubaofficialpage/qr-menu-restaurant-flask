@@ -7,6 +7,8 @@ from PIL import Image
 
 UPLOAD_FOLDER = "static/resource/img"
 USER_PROFILE_UPLOAD_FOLDER = "static/resource/user_profiles"
+OPERATOR_AVATAR_UPLOAD_FOLDER = "static/resource/operator_avatars"
+BRANCH_QR_UPLOAD_FOLDER = "static/resource/branch_qr"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -31,6 +33,16 @@ def get_restaurant_upload_folder(restaurant):
 def get_user_profile_upload_folder():
     os.makedirs(USER_PROFILE_UPLOAD_FOLDER, exist_ok=True)
     return USER_PROFILE_UPLOAD_FOLDER
+
+
+def get_operator_avatar_upload_folder():
+    os.makedirs(OPERATOR_AVATAR_UPLOAD_FOLDER, exist_ok=True)
+    return OPERATOR_AVATAR_UPLOAD_FOLDER
+
+
+def get_branch_qr_upload_folder():
+    os.makedirs(BRANCH_QR_UPLOAD_FOLDER, exist_ok=True)
+    return BRANCH_QR_UPLOAD_FOLDER
 
 
 def save_uploaded_image(image, upload_folder, relative_prefix, quality=75, max_size=(800, 800)):
@@ -59,12 +71,27 @@ def save_user_avatar(image):
     return save_uploaded_image(image, upload_folder, "user_profiles", quality=80, max_size=(600, 600))
 
 
+def save_operator_avatar(image):
+    upload_folder = get_operator_avatar_upload_folder()
+    return save_uploaded_image(image, upload_folder, "operator_avatars", quality=80, max_size=(600, 600))
+
+
+def save_branch_qr_image(image):
+    upload_folder = get_branch_qr_upload_folder()
+    return save_uploaded_image(image, upload_folder, "branch_qr", quality=90, max_size=(1200, 1200))
+
+
 def delete_resource_file(resource_path):
     if not resource_path:
         return
 
     relative_path = resource_path.replace("\\", "/")
-    if not (relative_path.startswith("img/") or relative_path.startswith("user_profiles/")):
+    if not (
+        relative_path.startswith("img/")
+        or relative_path.startswith("user_profiles/")
+        or relative_path.startswith("operator_avatars/")
+        or relative_path.startswith("branch_qr/")
+    ):
         return
 
     file_path = os.path.normpath(os.path.join("static/resource", relative_path))

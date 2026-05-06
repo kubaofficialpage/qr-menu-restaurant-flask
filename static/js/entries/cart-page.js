@@ -127,10 +127,6 @@ function bindCartPageActions() {
     window.addEventListener('resize', scheduleCartTourPosition);
     window.addEventListener('scroll', scheduleCartTourPosition, { passive: true });
 
-    getById("cartPageCheckout")?.addEventListener('click', (e) => {
-        e.preventDefault();
-        alert(t("checkout_not_connected"));
-    });
 }
 
 function renderCartPage() {
@@ -246,7 +242,7 @@ function renderMenuSuggestions() {
     container.dataset.rendered = "true";
 }
 
-function getCartItems() {
+export function getCartItems() {
     const items = [];
 
     Object.entries(state.cartQty).forEach(([id, qty]) => {
@@ -369,9 +365,13 @@ function closeClearModal() {
 }
 
 function confirmClearCart() {
+    clearCartState();
+    closeClearModal();
+}
+
+function clearCartState() {
     Object.keys(state.cartQty).forEach(id => delete state.cartQty[id]);
     saveCartToStorage();
-    closeClearModal();
     refreshCartPage();
 }
 

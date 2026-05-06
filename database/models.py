@@ -158,3 +158,94 @@ class MenuCartEvent(db.Model):
 
     restaurant = db.relationship("Restaurant", back_populates="cart_events")
     menu_item = db.relationship("MenuItem", back_populates="cart_events")
+
+
+class RestaurantBranch(TimestampMixin, db.Model):
+    __tablename__ = "restaurant_branches"
+
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = db.Column(db.String(160), nullable=False)
+    address = db.Column(db.String(255), nullable=False)
+    qr_code_image = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, nullable=False, server_default=db.true())
+
+    restaurant = db.relationship("Restaurant", backref=db.backref("branches", cascade="all, delete-orphan"))
+    operators = db.relationship("Operator", back_populates="branch", cascade="all, delete-orphan")
+    orders = db.relationship("Order", back_populates="branch")
+
+
+class Operator(TimestampMixin, db.Model):
+    __tablename__ = "operators"
+
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("restaurant_branches.id", ondelete="SET NULL"), index=True)
+    full_name = db.Column(db.String(160), nullable=False)
+    avatar = db.Column(db.String(255))
+    login = db.Column(db.String(120), nullable=False, unique=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    position = db.Column(db.String(120), nullable=False, server_default="Оператор")
+    is_active = db.Column(db.Boolean, nullable=False, server_default=db.true())
+
+    restaurant = db.relationship("Restaurant", backref=db.backref("operators", cascade="all, delete-orphan"))
+    branch = db.relationship("RestaurantBranch", back_populates="operators")
+
+
+class Customer(TimestampMixin, db.Model):
+    __tablename__ = "customers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(160), nullable=False)
+    phone_whatsapp = db.Column(db.String(32), nullable=False, unique=True)
+    address = db.Column(db.String(255))
+
+    orders = db.relationship("Order", back_populates="customer")
+
+
+class Order(TimestampMixin, db.Model):
+    __tablename__ = "orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(32), nullable=False, unique=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("restaurant_branches.id", ondelete="SET NULL"), index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id", ondelete="SET NULL"), index=True)
+    status = db.Column(
+        ENUM("new", "accepted", "courier", "completed", "cancelled"),
+        nullable=False,
+        server_default="new",
+    )
+    payment_type = db.Column(ENUM("cash", "online"), nullable=False, server_default="online")
+    payment_status = db.Column(
+        ENUM("pending", "receipt_uploaded", "paid"),
+        nullable=False,
+        server_default="pending",
+    )
+    delivery_address = db.Column(db.String(255), nullable=False)
+    customer_comment = db.Column(db.Text)
+    yandex_delivery_url = db.Column(db.String(500))
+    delivery_fee = db.Column(db.Integer, nullable=False, server_default="0")
+    receipt_image = db.Column(db.String(255))
+    subtotal_amount = db.Column(db.Integer, nullable=False, server_default="0")
+    total_amount = db.Column(db.Integer, nullable=False, server_default="0")
+
+    restaurant = db.relationship("Restaurant", backref=db.backref("orders", cascade="all, delete-orphan"))
+    branch = db.relationship("RestaurantBranch", back_populates="orders")
+    customer = db.relationship("Customer", back_populates="orders")
+    items = db.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+
+
+class OrderItem(db.Model):
+    __tablename__ = "order_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_item_id = db.Column(db.Integer, db.ForeignKey("menu.id", ondelete="SET NULL"), index=True)
+    item_name = db.Column(db.String(200), nullable=False)
+    item_price = db.Column(db.Integer, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, server_default="1")
+    amount_label = db.Column(db.String(50))
+
+    order = db.relationship("Order", back_populates="items")
+    menu_item = db.relationship("MenuItem")
