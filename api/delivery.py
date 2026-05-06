@@ -13,11 +13,12 @@ from database.models import Customer, MenuItem, Order, OrderItem, Restaurant, Re
 
 delivery_api = Blueprint("delivery_api", __name__)
 
-OTP_STUB_CODE = "0000"
+OTP_STUB_CODE = "000000"
 CUSTOMER_SESSION_ID_KEY = "customer_id"
 CUSTOMER_SESSION_PHONE_KEY = "customer_phone"
 CUSTOMER_PENDING_PHONE_KEY = "customer_pending_phone"
 CHECKOUT_SUBMISSION_MAP_KEY = "checkout_submission_map"
+OTP_ACCEPTED_CODES = {OTP_STUB_CODE, "0000"}
 
 RESOURCE_ROOT = os.path.join("static", "resource")
 OPERATOR_AVATAR_FOLDER = os.path.join(RESOURCE_ROOT, "operator_avatars")

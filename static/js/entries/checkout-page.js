@@ -11,6 +11,8 @@ const checkoutState = {
     selectedBranchId: null,
     isSubmitting: false,
     requestId: null,
+    pendingAdvance: false,
+    authStep: "phone",
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -24,12 +26,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
         await fetchMenuData();
     } catch {
-        // Summary can still render partially from cart state, but menu data is preferred.
+        // Keep checkout usable even if menu fetch fails.
     }
 
     renderCartSummary();
     renderBranches();
-    syncKnownCustomerState();
+    syncAuthCard();
     updateStep();
 });
 
@@ -42,11 +44,9 @@ function hydrateCheckoutState() {
     checkoutState.requestId = window.crypto?.randomUUID?.() || `checkout-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     const otpStub = document.getElementById("checkoutOtpStubCode");
-    if (otpStub) otpStub.textContent = pageData.otpStubCode || "0000";
+    if (otpStub) otpStub.textContent = pageData.otpStubCode || "000000";
 
     if (checkoutState.customer) {
-        document.getElementById("checkoutFullName").value = checkoutState.customer.full_name || "";
-        document.getElementById("checkoutPhone").value = checkoutState.customer.phone_whatsapp || "";
         document.getElementById("checkoutAddress").value = checkoutState.customer.address || "";
     }
 }
@@ -54,20 +54,47 @@ function hydrateCheckoutState() {
 function bindCheckoutActions() {
     document.getElementById("checkoutNextBtn")?.addEventListener("click", onNextStep);
     document.getElementById("checkoutBackBtn")?.addEventListener("click", onBackStep);
-    document.getElementById("checkoutRequestOtpBtn")?.addEventListener("click", requestOtp);
-    document.getElementById("checkoutVerifyOtpBtn")?.addEventListener("click", verifyOtp);
     document.getElementById("checkoutForm")?.addEventListener("submit", submitOrder);
+
+    document.getElementById("checkoutOpenAuthBtn")?.addEventListener("click", openAuthModal);
+    document.getElementById("checkoutAuthCloseBtn")?.addEventListener("click", closeAuthModal);
+    document.getElementById("checkoutAuthModal")?.addEventListener("click", event => {
+        if (event.target === event.currentTarget) closeAuthModal();
+    });
+    document.getElementById("checkoutAuthNextBtn")?.addEventListener("click", requestOtp);
+    document.getElementById("checkoutAuthVerifyBtn")?.addEventListener("click", verifyOtp);
+
+    document.querySelectorAll("[data-otp-digit]").forEach((input, index, inputs) => {
+        input.addEventListener("input", () => {
+            input.value = input.value.replace(/\D/g, "").slice(0, 1);
+            if (input.value && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+        });
+        input.addEventListener("keydown", event => {
+            if (event.key === "Backspace" && !input.value && index > 0) {
+                inputs[index - 1].focus();
+            }
+        });
+        input.addEventListener("paste", event => {
+            event.preventDefault();
+            const digits = String(event.clipboardData?.getData("text") || "").replace(/\D/g, "").slice(0, inputs.length);
+            digits.split("").forEach((digit, digitIndex) => {
+                if (inputs[digitIndex]) inputs[digitIndex].value = digit;
+            });
+            const targetIndex = Math.min(digits.length, inputs.length - 1);
+            inputs[targetIndex]?.focus();
+        });
+    });
 }
 
 function getCartItems() {
     const items = [];
-
     Object.entries(state.cartQty).forEach(([id, qty]) => {
         const menuItem = state.menuById.get(String(id));
         if (!menuItem || qty <= 0) return;
         items.push({ ...menuItem, qty });
     });
-
     return items;
 }
 
@@ -132,28 +159,22 @@ function renderBranches() {
     updateBranchQr();
 }
 
-function syncKnownCustomerState() {
-    const knownCard = document.getElementById("checkoutKnownCustomerCard");
-    const knownText = document.getElementById("checkoutKnownCustomerText");
-    const identityFields = document.getElementById("checkoutIdentityFields");
-    const otpBlock = document.getElementById("checkoutOtpBlock");
-    const status = document.getElementById("checkoutAuthStatus");
-    if (!knownCard || !knownText || !identityFields || !otpBlock) return;
+function syncAuthCard() {
+    const title = document.getElementById("checkoutAuthTitle");
+    const text = document.getElementById("checkoutAuthText");
+    const button = document.getElementById("checkoutOpenAuthBtn");
+    if (!title || !text || !button) return;
 
-    if (!checkoutState.customer || !checkoutState.verified) {
-        knownCard.classList.add("hidden");
-        identityFields.classList.remove("hidden");
-        otpBlock.classList.remove("hidden");
+    if (checkoutState.verified) {
+        title.textContent = "Авторизация подтверждена";
+        text.textContent = "Номер телефона успешно подтвержден.";
+        button.classList.add("hidden");
         return;
     }
 
-    knownText.textContent = `${checkoutState.customer.full_name || ""} - ${checkoutState.customer.phone_whatsapp || ""}`;
-    knownCard.classList.remove("hidden");
-    identityFields.classList.add("hidden");
-    otpBlock.classList.add("hidden");
-    if (status) {
-        status.textContent = "Номер подтвержден.";
-    }
+    title.textContent = "Нужна авторизация";
+    text.textContent = "Подтвердите номер телефона перед оформлением заказа.";
+    button.classList.remove("hidden");
 }
 
 function updateBranchQr() {
@@ -189,6 +210,11 @@ function updateStep() {
 }
 
 function onNextStep() {
+    if (checkoutState.currentStep === 1 && !checkoutState.verified) {
+        checkoutState.pendingAdvance = true;
+        openAuthModal();
+        return;
+    }
     if (!validateStep(checkoutState.currentStep)) return;
     checkoutState.currentStep = Math.min(3, checkoutState.currentStep + 1);
     updateStep();
@@ -203,14 +229,9 @@ function validateStep(step) {
     resetMessages();
 
     if (step === 1) {
-        const fullName = document.getElementById("checkoutFullName")?.value.trim() || checkoutState.customer?.full_name || "";
-        const phone = document.getElementById("checkoutPhone")?.value.trim() || checkoutState.customer?.phone_whatsapp || "";
         const address = document.getElementById("checkoutAddress")?.value.trim() || "";
-
-        if (!fullName) return showError("Укажите ФИО.");
-        if (!phone) return showError("Укажите номер WhatsApp.");
         if (!address) return showError("Укажите адрес доставки.");
-        if (!checkoutState.verified) return showError("Подтвердите номер через OTP.");
+        if (!checkoutState.verified) return showError("Сначала авторизуйтесь по номеру телефона.");
     }
 
     if (step === 2 && !checkoutState.selectedBranchId) {
@@ -220,7 +241,6 @@ function validateStep(step) {
     if (step === 3) {
         const paymentType = document.querySelector('input[name="payment_type"]:checked')?.value || "online";
         const receipt = document.getElementById("checkoutReceipt")?.files?.[0];
-
         if (paymentType === "online" && !receipt) {
             return showError("Загрузите чек оплаты.");
         }
@@ -229,11 +249,37 @@ function validateStep(step) {
     return true;
 }
 
+function openAuthModal() {
+    document.getElementById("checkoutAuthModal")?.classList.remove("hidden");
+    resetAuthModal();
+    document.getElementById("checkoutAuthPhone")?.focus();
+}
+
+function closeAuthModal() {
+    document.getElementById("checkoutAuthModal")?.classList.add("hidden");
+    checkoutState.pendingAdvance = false;
+}
+
+function resetAuthModal() {
+    checkoutState.authStep = "phone";
+    document.getElementById("checkoutAuthStepPhone")?.classList.remove("hidden");
+    document.getElementById("checkoutAuthStepCode")?.classList.add("hidden");
+    document.getElementById("checkoutAuthError")?.classList.add("hidden");
+    document.querySelectorAll("[data-otp-digit]").forEach(input => {
+        input.value = "";
+    });
+
+    const phoneInput = document.getElementById("checkoutAuthPhone");
+    if (phoneInput && checkoutState.customer?.phone_whatsapp) {
+        phoneInput.value = checkoutState.customer.phone_whatsapp;
+    }
+}
+
 async function requestOtp() {
-    resetMessages();
-    const phone = document.getElementById("checkoutPhone")?.value.trim() || "";
+    hideAuthError();
+    const phone = document.getElementById("checkoutAuthPhone")?.value.trim() || "";
     if (!phone) {
-        showError("Сначала укажите номер WhatsApp.");
+        showAuthError("Введите номер телефона.");
         return;
     }
 
@@ -244,47 +290,64 @@ async function requestOtp() {
     });
     const data = await response.json();
     if (!response.ok || !data.ok) {
-        showError(data.message || "Не удалось отправить OTP.");
+        showAuthError(data.message || "Не удалось отправить OTP.");
         return;
     }
 
-    const status = document.getElementById("checkoutAuthStatus");
-    if (status) {
-        status.textContent = data.message || "Код отправлен.";
-    }
+    checkoutState.authStep = "code";
+    document.getElementById("checkoutAuthStepPhone")?.classList.add("hidden");
+    document.getElementById("checkoutAuthStepCode")?.classList.remove("hidden");
+    document.querySelector("[data-otp-digit]")?.focus();
 }
 
 async function verifyOtp() {
-    resetMessages();
-    const phone = document.getElementById("checkoutPhone")?.value.trim() || "";
-    const fullName = document.getElementById("checkoutFullName")?.value.trim() || "";
-    const address = document.getElementById("checkoutAddress")?.value.trim() || "";
-    const code = document.getElementById("checkoutOtpCode")?.value.trim() || "";
+    hideAuthError();
+    const phone = document.getElementById("checkoutAuthPhone")?.value.trim() || "";
+    const code = getOtpCode();
 
-    if (!phone || !fullName) {
-        showError("Сначала заполните ФИО и номер WhatsApp.");
+    if (!phone) {
+        showAuthError("Введите номер телефона.");
         return;
     }
-    if (!code) {
-        showError("Введите OTP код.");
+    if (code.length !== 6) {
+        showAuthError("Введите код из 6 цифр.");
         return;
     }
 
     const response = await fetch("/api/customer/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code, fullName, address }),
+        body: JSON.stringify({
+            phone,
+            code,
+            address: document.getElementById("checkoutAddress")?.value.trim() || "",
+        }),
     });
     const data = await response.json();
     if (!response.ok || !data.ok) {
-        showError(data.message || "Не удалось подтвердить номер.");
+        showAuthError(data.message || "Не удалось подтвердить номер.");
         return;
     }
 
     checkoutState.customer = data.customer || null;
     checkoutState.verified = true;
-    syncKnownCustomerState();
-    showSuccess("Номер подтвержден.");
+    if (checkoutState.customer?.address && !document.getElementById("checkoutAddress")?.value.trim()) {
+        document.getElementById("checkoutAddress").value = checkoutState.customer.address;
+    }
+    syncAuthCard();
+    document.getElementById("checkoutAuthModal")?.classList.add("hidden");
+
+    if (checkoutState.pendingAdvance && validateStep(1)) {
+        checkoutState.pendingAdvance = false;
+        checkoutState.currentStep = 2;
+        updateStep();
+    }
+}
+
+function getOtpCode() {
+    return Array.from(document.querySelectorAll("[data-otp-digit]"))
+        .map(input => input.value.trim())
+        .join("");
 }
 
 async function submitOrder(event) {
@@ -304,19 +367,16 @@ async function submitOrder(event) {
     toggleSubmitting(true);
 
     const formData = new FormData();
-    const fullNameInput = document.getElementById("checkoutFullName");
-    const phoneInput = document.getElementById("checkoutPhone");
     const addressInput = document.getElementById("checkoutAddress");
     const commentInput = document.getElementById("checkoutComment");
-    const otpInput = document.getElementById("checkoutOtpCode");
     const receiptInput = document.getElementById("checkoutReceipt");
     const paymentType = document.querySelector('input[name="payment_type"]:checked')?.value || "online";
 
-    formData.set("full_name", fullNameInput?.value.trim() || checkoutState.customer?.full_name || "");
-    formData.set("phone", phoneInput?.value.trim() || checkoutState.customer?.phone_whatsapp || "");
+    formData.set("full_name", checkoutState.customer?.full_name || "");
+    formData.set("phone", checkoutState.customer?.phone_whatsapp || "");
     formData.set("address", addressInput?.value.trim() || "");
     formData.set("comment", commentInput?.value.trim() || "");
-    formData.set("otp_code", checkoutState.customer ? "" : (otpInput?.value.trim() || ""));
+    formData.set("otp_code", "");
     formData.set("payment_type", paymentType);
     formData.set("branch_id", String(checkoutState.selectedBranchId || ""));
     formData.set("client_request_id", checkoutState.requestId);
@@ -368,7 +428,7 @@ function toggleSubmitting(isSubmitting) {
 }
 
 function resetMessages() {
-    ["checkoutError", "checkoutSuccess", "checkoutLoading"].forEach(id => {
+    ["checkoutError", "checkoutLoading"].forEach(id => {
         document.getElementById(id)?.classList.add("hidden");
     });
 }
@@ -381,15 +441,19 @@ function showError(message) {
     return false;
 }
 
-function showSuccess(message) {
-    const box = document.getElementById("checkoutSuccess");
+function showLoading() {
+    document.getElementById("checkoutLoading")?.classList.remove("hidden");
+}
+
+function showAuthError(message) {
+    const box = document.getElementById("checkoutAuthError");
     if (!box) return;
     box.textContent = message;
     box.classList.remove("hidden");
 }
 
-function showLoading() {
-    document.getElementById("checkoutLoading")?.classList.remove("hidden");
+function hideAuthError() {
+    document.getElementById("checkoutAuthError")?.classList.add("hidden");
 }
 
 function escapeHtml(value) {

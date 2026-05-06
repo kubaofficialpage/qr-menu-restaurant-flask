@@ -304,6 +304,19 @@ backface-visibility:hidden;
 transform:translateZ(0);
 }
 
+.checkout-auth-sheet {
+max-height:min(88vh, 760px);
+overflow:auto;
+}
+
+.otp-digit-input {
+transition:border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.otp-digit-input:focus {
+box-shadow:0 0 0 4px oklch(84% 0.1 145 / 30%);
+}
+
 .checkout-page-footer button[disabled],
 .checkout-page button[disabled] {
 opacity:0.6;
