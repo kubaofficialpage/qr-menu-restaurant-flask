@@ -21,7 +21,7 @@
 
     <main class="mx-auto max-w-5xl space-y-4 px-4 py-5">
         <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-            <div class="grid gap-3 md:grid-cols-4">
+            <div class="grid gap-3 md:grid-cols-5">
                 <div class="rounded-2xl bg-slate-50 px-4 py-3">
                     <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                         <i class="fa-solid fa-signal" aria-hidden="true"></i>
@@ -39,22 +39,74 @@
                 <div class="rounded-2xl bg-slate-50 px-4 py-3">
                     <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                         <i class="fa-solid fa-credit-card" aria-hidden="true"></i>
-                        <span>Оплата</span>
+                        <span>Тип оплаты</span>
                     </div>
                     <div class="mt-1 text-lg font-bold text-slate-900">{{ "Онлайн" if order.payment_type == "online" else "Наличные" }}</div>
+                </div>
+                <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <i class="fa-solid fa-wallet" aria-hidden="true"></i>
+                        <span>Оплата</span>
+                    </div>
+                    <div class="mt-1 text-lg font-bold {% if order.payment_status == 'paid' %}text-emerald-700{% else %}text-amber-700{% endif %}">
+                        {{ payment_status_labels[order.payment_status] }}
+                    </div>
                 </div>
                 <div class="rounded-2xl bg-slate-50 px-4 py-3">
                     <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                         <i class="fa-solid fa-stopwatch" aria-hidden="true"></i>
                         <span>Таймер</span>
                     </div>
-                    <div class="mt-1 text-lg font-bold text-slate-900" data-order-timer data-created-at="{{ order.created_at.isoformat() }}">00:00</div>
+                    <div class="mt-1 text-lg font-bold text-slate-900" data-order-timer data-created-at="{{ order.created_at.isoformat() }}" {% if order.completed_at or order.cancelled_at %}data-stopped-at="{{ (order.completed_at or order.cancelled_at).isoformat() }}"{% endif %}>00:00</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="overflow-hidden rounded-[28px] bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+            <button type="button" class="flex w-full items-center justify-between gap-3 px-5 py-5 text-left" data-operator-accordion-button data-target="operatorOrderTimelineBody">
+                <h2 class="text-lg font-bold text-slate-900"><i class="fa-regular fa-clock mr-2" aria-hidden="true"></i>Таймлайн заказа</h2>
+                <i class="fa-solid fa-chevron-down text-slate-400 transition-transform" data-operator-accordion-icon aria-hidden="true"></i>
+            </button>
+            <div id="operatorOrderTimelineBody" class="hidden border-t border-slate-100 px-5 pb-5">
+                <div class="mt-4 grid gap-3 md:grid-cols-3">
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Создан</div>
+                        <div class="mt-2 text-sm font-semibold text-slate-900">{{ order.created_at.strftime("%d.%m.%Y %H:%M:%S") if order.created_at else "-" }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Принят рестораном</div>
+                        <div class="mt-2 text-sm font-semibold text-slate-900">{{ order.accepted_at.strftime("%d.%m.%Y %H:%M:%S") if order.accepted_at else "-" }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Передан курьеру</div>
+                        <div class="mt-2 text-sm font-semibold text-slate-900">{{ order.courier_handed_at.strftime("%d.%m.%Y %H:%M:%S") if order.courier_handed_at else "-" }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Принял клиент</div>
+                        <div class="mt-2 text-sm font-semibold text-slate-900">{{ order.customer_completed_at.strftime("%d.%m.%Y %H:%M:%S") if order.customer_completed_at else "-" }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Завершен</div>
+                        <div class="mt-2 text-sm font-semibold text-slate-900">{{ order.completed_at.strftime("%d.%m.%Y %H:%M:%S") if order.completed_at else "-" }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Отменен</div>
+                        <div class="mt-2 text-sm font-semibold text-slate-900">{{ order.cancelled_at.strftime("%d.%m.%Y %H:%M:%S") if order.cancelled_at else "-" }}</div>
+                    </div>
+                    <div class="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white md:col-span-3">
+                        Время до финального статуса:
+                        {% if order.completed_at or order.cancelled_at %}
+                            {{ format_order_duration(order) }}
+                        {% else %}
+                            в процессе
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </section>
 
         <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-            <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-bag-shopping mr-2" aria-hidden="true"></i>Заказы</h2>
+            <h2 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-bag-shopping mr-2" aria-hidden="true"></i>Заказ</h2>
             <div class="mt-4 space-y-3">
                 {% for item in order.items %}
                 <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
@@ -79,12 +131,13 @@
                     <div class="flex gap-2">
                         <input name="yandex_delivery_url" type="url" value="{{ order.yandex_delivery_url or '' }}" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400">
                         <input name="delivery_fee" type="hidden" value="{{ order.delivery_fee }}">
+                        <input name="status" type="hidden" value="{{ order.status }}">
+                        <input name="payment_status" type="hidden" value="{{ order.payment_status }}">
                         <button type="submit" class="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-emerald-600 text-white">
                             <i class="fa-solid fa-check" aria-hidden="true"></i>
                         </button>
                     </div>
                 </label>
-                <input type="hidden" name="status" value="{{ order.status }}">
             </form>
         </section>
 
@@ -116,27 +169,40 @@
             <div class="grid grid-cols-2 gap-3">
                 <form method="POST" action="{{ url_for('operator.update_order', order_id=order.id) }}">
                     <input type="hidden" name="status" value="cancelled">
+                    <input type="hidden" name="payment_status" value="{{ order.payment_status }}">
                     <input type="hidden" name="yandex_delivery_url" value="{{ order.yandex_delivery_url or '' }}">
                     <input type="hidden" name="delivery_fee" value="{{ order.delivery_fee }}">
                     <button type="submit" class="w-full rounded-2xl bg-rose-500 px-4 py-3 font-semibold text-white">Отменить заказ</button>
                 </form>
                 <form method="POST" action="{{ url_for('operator.update_order', order_id=order.id) }}">
                     <input type="hidden" name="status" value="accepted">
+                    <input type="hidden" name="payment_status" value="{{ order.payment_status }}">
                     <input type="hidden" name="yandex_delivery_url" value="{{ order.yandex_delivery_url or '' }}">
                     <input type="hidden" name="delivery_fee" value="{{ order.delivery_fee }}">
                     <button type="submit" class="w-full rounded-2xl bg-emerald-600 px-4 py-3 font-semibold text-white">Принять заказ</button>
                 </form>
             </div>
             {% elif order.status == 'accepted' %}
+            {% if order.payment_type == 'online' and order.payment_status != 'paid' %}
+            <form method="POST" action="{{ url_for('operator.update_order', order_id=order.id) }}">
+                <input type="hidden" name="status" value="accepted">
+                <input type="hidden" name="payment_status" value="paid">
+                <input type="hidden" name="yandex_delivery_url" value="{{ order.yandex_delivery_url or '' }}">
+                <input type="hidden" name="delivery_fee" value="{{ order.delivery_fee }}">
+                <button type="submit" class="w-full rounded-2xl bg-emerald-600 px-4 py-4 text-base font-semibold text-white">Подтвердить оплату</button>
+            </form>
+            {% else %}
             <form method="POST" action="{{ url_for('operator.update_order', order_id=order.id) }}">
                 <input type="hidden" name="status" value="courier">
+                <input type="hidden" name="payment_status" value="{{ order.payment_status }}">
                 <input type="hidden" name="yandex_delivery_url" value="{{ order.yandex_delivery_url or '' }}">
                 <input type="hidden" name="delivery_fee" value="{{ order.delivery_fee }}">
                 <button type="submit" class="w-full rounded-2xl bg-slate-900 px-4 py-4 text-base font-semibold text-white">Передать курьеру</button>
             </form>
             {% endif %}
+            {% endif %}
         </div>
-        <script type="application/json" id="operatorSocketConfig">{{ {"branchId": operator.branch_id or 0, "orderId": order.id}|tojson }}</script>
+        <script type="application/json" id="operatorSocketConfig">{{ {"branchId": operator.branch_id or 0, "orderId": order.id, "hasNewOrders": order.status == "new"}|tojson }}</script>
     </footer>
 </div>
 {% endblock %}

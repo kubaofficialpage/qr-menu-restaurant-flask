@@ -10,7 +10,7 @@ from database.db import get_session, session_scope
 from database.extensions import socketio
 from database.models import Operator, Order, Restaurant, RestaurantBranch
 
-from .delivery import ORDER_STATUS_LABELS, serialize_order
+from .delivery import ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, serialize_order, update_order_status_timestamps
 
 operator_bp = Blueprint("operator", __name__, url_prefix="/operator")
 
@@ -56,6 +56,17 @@ def get_operator_orders(operator, history=False):
     return db_session.execute(query).unique().scalars().all()
 
 
+def format_order_duration(order):
+    final_timestamp = order.completed_at or order.cancelled_at
+    if not final_timestamp or not order.created_at:
+        return None
+
+    total_seconds = max(0, int((final_timestamp - order.created_at).total_seconds()))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
 @operator_bp.route("", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -96,6 +107,8 @@ def dashboard():
         orders=orders,
         tab=tab,
         status_labels=ORDER_STATUS_LABELS,
+        payment_status_labels=PAYMENT_STATUS_LABELS,
+        format_order_duration=format_order_duration,
     )
 
 
@@ -120,6 +133,8 @@ def order_detail(order_id):
         order=order,
         serialized_order=serialize_order(order),
         status_labels=ORDER_STATUS_LABELS,
+        payment_status_labels=PAYMENT_STATUS_LABELS,
+        format_order_duration=format_order_duration,
     )
 
 
@@ -128,6 +143,7 @@ def order_detail(order_id):
 def update_order(order_id):
     operator = current_operator()
     new_status = request.form.get("status", "").strip()
+    new_payment_status = request.form.get("payment_status", "").strip()
     delivery_url = request.form.get("yandex_delivery_url", "").strip() or None
     try:
         delivery_fee = int(request.form.get("delivery_fee", "0") or 0)
@@ -147,8 +163,12 @@ def update_order(order_id):
         order.yandex_delivery_url = delivery_url
         order.delivery_fee = max(0, delivery_fee)
         order.total_amount = max(0, order.subtotal_amount + order.delivery_fee)
+        if new_payment_status in PAYMENT_STATUS_LABELS:
+            order.payment_status = new_payment_status
         if new_status in ORDER_STATUS_LABELS:
-            order.status = new_status
+            if new_status == "courier" and order.payment_type == "online" and order.payment_status != "paid":
+                return redirect(url_for("operator.order_detail", order_id=order.id))
+            update_order_status_timestamps(order, new_status)
         db_session.flush()
         order_id = order.id
 

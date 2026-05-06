@@ -35,6 +35,13 @@ ORDER_STATUS_LABELS = {
 }
 
 
+PAYMENT_STATUS_LABELS = {
+    "pending": "Неоплачено",
+    "receipt_uploaded": "Неоплачено",
+    "paid": "Оплачено",
+}
+
+
 def normalize_phone(phone):
     digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
     if not digits:
@@ -82,6 +89,7 @@ def serialize_customer(customer):
 def serialize_order(order):
     data = model_to_dict(order)
     data["status_label"] = ORDER_STATUS_LABELS.get(order.status, order.status)
+    data["payment_status_label"] = PAYMENT_STATUS_LABELS.get(order.payment_status, order.payment_status)
     data["branch"] = serialize_branch(order.branch) if order.branch else None
     data["customer"] = serialize_customer(order.customer)
     data["receipt_url"] = f"/static/resource/{order.receipt_image}" if order.receipt_image else None
@@ -93,7 +101,48 @@ def serialize_order(order):
         data["items"].append(item_data)
     data["detail_url"] = f"/order/{order.public_id}" if getattr(order, "public_id", None) else None
     data["can_customer_complete"] = order.status in {"accepted", "courier"}
+    timer_stopped_at = get_order_timer_stopped_at(order)
+    data["timer_stopped_at"] = serialize_value(timer_stopped_at)
+    data["final_duration_seconds"] = get_order_final_duration_seconds(order)
     return data
+
+
+def get_order_timer_stopped_at(order):
+    return order.cancelled_at or order.completed_at
+
+
+def get_order_final_duration_seconds(order):
+    if not order.created_at:
+        return None
+    timer_stopped_at = get_order_timer_stopped_at(order)
+    if not timer_stopped_at:
+        return None
+    return max(0, int((timer_stopped_at - order.created_at).total_seconds()))
+
+
+def update_order_status_timestamps(order, new_status):
+    now = datetime.utcnow()
+
+    if new_status == "accepted" and not order.accepted_at:
+        order.accepted_at = now
+    elif new_status == "courier":
+        if not order.accepted_at:
+            order.accepted_at = now
+        if not order.courier_handed_at:
+            order.courier_handed_at = now
+    elif new_status == "completed":
+        if not order.accepted_at and order.status in {"new", "accepted", "courier"}:
+            order.accepted_at = now
+        if order.status == "courier" and not order.courier_handed_at:
+            order.courier_handed_at = now
+        if not order.customer_completed_at:
+            order.customer_completed_at = now
+        if not order.completed_at:
+            order.completed_at = now
+    elif new_status == "cancelled" and not order.cancelled_at:
+        order.cancelled_at = now
+
+    order.status = new_status
 
 
 def get_checkout_payload(restaurant):
@@ -568,7 +617,7 @@ def customer_complete_order(restaurant_slug, order_id):
             return redirect(
                 url_for("delivery_api.customer_order_detail_page", restaurant_slug=restaurant_slug, order_id=order_id)
             )
-        order.status = "completed"
+        update_order_status_timestamps(order, "completed")
         db_session.flush()
 
     db_session = get_session()

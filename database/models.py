@@ -231,6 +231,11 @@ class Order(TimestampMixin, db.Model):
     receipt_image = db.Column(db.String(255))
     subtotal_amount = db.Column(db.Integer, nullable=False, server_default="0")
     total_amount = db.Column(db.Integer, nullable=False, server_default="0")
+    accepted_at = db.Column(db.DateTime)
+    courier_handed_at = db.Column(db.DateTime)
+    customer_completed_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    cancelled_at = db.Column(db.DateTime)
 
     restaurant = db.relationship("Restaurant", backref=db.backref("orders", cascade="all, delete-orphan"))
     branch = db.relationship("RestaurantBranch", back_populates="orders")
