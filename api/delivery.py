@@ -91,7 +91,7 @@ def serialize_order(order):
         menu_item = getattr(item, "menu_item", None)
         item_data["image_url"] = f"/static/resource/{menu_item.image}" if menu_item and getattr(menu_item, "image", None) else "/static/resource/img/default_food_png.png"
         data["items"].append(item_data)
-    data["detail_url"] = f"/{order.restaurant.slug}/orders/{order.id}" if getattr(order, "restaurant", None) else None
+    data["detail_url"] = f"/order/{order.public_id}" if getattr(order, "public_id", None) else None
     data["can_customer_complete"] = order.status in {"accepted", "courier"}
     return data
 
@@ -373,6 +373,7 @@ def create_order(restaurant_slug):
 
     with session_scope() as db_session:
         order = Order(
+            public_id=uuid.uuid4().hex,
             order_number=next_order_number(),
             restaurant_id=restaurant.id,
             branch_id=branch.id,
@@ -515,6 +516,34 @@ def customer_order_detail_page(restaurant_slug, order_id):
         "client/order_detail.html",
         restaurant=model_to_dict(restaurant),
         order=serialize_order(order),
+    )
+
+
+@delivery_api.route("/order/<public_id>")
+def public_order_detail_page(public_id):
+    db_session = get_session()
+    order = db_session.execute(
+        select(Order)
+        .options(
+            joinedload(Order.restaurant),
+            joinedload(Order.branch),
+            joinedload(Order.customer),
+            joinedload(Order.items).joinedload(OrderItem.menu_item),
+        )
+        .where(Order.public_id == public_id)
+    ).unique().scalar_one_or_none()
+    if not order or not order.restaurant:
+        return render_template("client/404.html"), 404
+
+    order_data = serialize_order(order)
+    customer = current_customer()
+    if not customer or order.customer_id != customer.id:
+        order_data["can_customer_complete"] = False
+
+    return render_template(
+        "client/order_detail.html",
+        restaurant=model_to_dict(order.restaurant),
+        order=order_data,
     )
 
 

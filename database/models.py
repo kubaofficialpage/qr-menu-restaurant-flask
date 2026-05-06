@@ -208,6 +208,7 @@ class Order(TimestampMixin, db.Model):
     __tablename__ = "orders"
 
     id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.String(64), nullable=False, unique=True, index=True)
     order_number = db.Column(db.String(32), nullable=False, unique=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
     branch_id = db.Column(db.Integer, db.ForeignKey("restaurant_branches.id", ondelete="SET NULL"), index=True)

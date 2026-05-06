@@ -103,6 +103,7 @@
 
     <footer class="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/98 px-4 py-4 backdrop-blur">
         <div class="mx-auto max-w-5xl space-y-3">
+            {% if order.status == 'new' %}
             <div class="grid grid-cols-2 gap-3">
                 <form method="POST" action="{{ url_for('operator.update_order', order_id=order.id) }}">
                     <input type="hidden" name="status" value="cancelled">
@@ -117,12 +118,14 @@
                     <button type="submit" class="w-full rounded-2xl bg-emerald-600 px-4 py-3 font-semibold text-white">Принять заказ</button>
                 </form>
             </div>
+            {% elif order.status == 'accepted' %}
             <form method="POST" action="{{ url_for('operator.update_order', order_id=order.id) }}">
                 <input type="hidden" name="status" value="courier">
                 <input type="hidden" name="yandex_delivery_url" value="{{ order.yandex_delivery_url or '' }}">
                 <input type="hidden" name="delivery_fee" value="{{ order.delivery_fee }}">
                 <button type="submit" class="w-full rounded-2xl bg-slate-900 px-4 py-4 text-base font-semibold text-white">Передать курьеру</button>
             </form>
+            {% endif %}
         </div>
         <script type="application/json" id="operatorSocketConfig">{{ {"branchId": operator.branch_id or 0, "orderId": order.id}|tojson }}</script>
     </footer>
