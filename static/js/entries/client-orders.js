@@ -1,14 +1,19 @@
-import { getRestaurantSlug } from '../modules/page-context.js';
+import { getRestaurantSlug } from "../modules/page-context.js";
 
 document.addEventListener("DOMContentLoaded", () => {
     const slug = getRestaurantSlug();
     if (!slug) return;
 
+    loadOrders(slug);
+    initSocket(slug);
+});
+
+function loadOrders(slug) {
     fetch(`/api/${encodeURIComponent(slug)}/orders/my`)
         .then(response => response.json())
         .then(data => renderOrders(data.orders || []))
         .catch(() => renderOrders([]));
-});
+}
 
 function renderOrders(orders) {
     const container = document.getElementById("customerOrdersList");
@@ -25,7 +30,7 @@ function renderOrders(orders) {
     }
 
     container.innerHTML = orders.map(order => `
-        <a href="${escapeHtml(order.detail_url || '#')}" class="block rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+        <a href="${escapeHtml(order.detail_url || "#")}" class="block rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Заказ</div>
@@ -42,11 +47,35 @@ function renderOrders(orders) {
                 <div class="rounded-2xl bg-slate-50 px-4 py-3">
                     <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Итого</div>
                     <div class="mt-1 font-semibold text-slate-900">${Number(order.total_amount || 0)} c</div>
-                    <div class="text-sm text-slate-500">${escapeHtml(order.delivery_address || "")}</div>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${order.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}">${escapeHtml(order.payment_status_label || "")}</span>
+                    </div>
+                    <div class="mt-2 text-sm text-slate-500">${escapeHtml(order.delivery_address || "")}</div>
                 </div>
             </div>
         </a>
     `).join("");
+}
+
+function initSocket(slug) {
+    const configElement = document.getElementById("clientOrdersSocketConfig");
+    if (!configElement || typeof io === "undefined") return;
+
+    let config = {};
+    try {
+        config = JSON.parse(configElement.textContent || "{}");
+    } catch {
+        config = {};
+    }
+
+    const socket = io();
+    socket.on("connect", () => {
+        socket.emit("join_customer_room", { restaurantId: Number(config.restaurantId || 0) });
+    });
+
+    socket.on("customer_order_updated", () => {
+        loadOrders(slug);
+    });
 }
 
 function escapeHtml(value) {

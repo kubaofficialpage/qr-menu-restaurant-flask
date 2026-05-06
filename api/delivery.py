@@ -287,12 +287,18 @@ def emit_order_event(order, event_name):
         "orderId": order.id,
         "orderNumber": order.order_number,
         "status": order.status,
+        "statusLabel": ORDER_STATUS_LABELS.get(order.status, order.status),
+        "paymentStatus": order.payment_status,
+        "paymentStatusLabel": PAYMENT_STATUS_LABELS.get(order.payment_status, order.payment_status),
+        "totalAmount": order.total_amount,
         "branchId": order.branch_id,
         "restaurantId": order.restaurant_id,
     }
     if order.branch_id:
         socketio.emit(event_name, payload, room=f"operator_branch_{order.branch_id}")
     socketio.emit(event_name, payload, room=f"restaurant_{order.restaurant_id}")
+    socketio.emit("customer_order_updated", payload, room=f"restaurant_{order.restaurant_id}")
+    socketio.emit("customer_order_updated", payload, room=f"order_{order.id}")
 
 
 @delivery_api.route("/api/customer/request-otp", methods=["POST"])
@@ -633,3 +639,19 @@ def customer_complete_order(restaurant_slug, order_id):
     ).unique().scalar_one()
     emit_order_event(order, "operator_orders_changed")
     return redirect(url_for("delivery_api.customer_order_detail_page", restaurant_slug=restaurant_slug, order_id=order_id))
+
+
+@socketio.on("join_customer_room")
+def on_join_customer_room(data):
+    from flask_socketio import join_room, emit
+
+    payload = data or {}
+    restaurant_id = int(payload.get("restaurantId") or 0)
+    order_id = int(payload.get("orderId") or 0)
+
+    if restaurant_id > 0:
+        join_room(f"restaurant_{restaurant_id}")
+    if order_id > 0:
+        join_room(f"order_{order_id}")
+
+    emit("customer_room_joined", {"restaurantId": restaurant_id, "orderId": order_id})

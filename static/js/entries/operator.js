@@ -1,9 +1,28 @@
+const SOUND_STORAGE_KEY = "operator_sound_enabled";
+
+let operatorSocketConfig = {};
+let newOrderAudio = null;
+
 document.addEventListener("DOMContentLoaded", () => {
+    operatorSocketConfig = readOperatorConfig();
     initTimers();
     initAccordions();
+    initOperatorMenus();
+    initSoundSettings();
     initNewOrderAlert();
     initSocket();
 });
+
+function readOperatorConfig() {
+    const configElement = document.getElementById("operatorSocketConfig");
+    if (!configElement) return {};
+
+    try {
+        return JSON.parse(configElement.textContent || "{}");
+    } catch {
+        return {};
+    }
+}
 
 function initTimers() {
     const tick = () => {
@@ -11,6 +30,7 @@ function initTimers() {
             const createdAt = node.dataset.createdAt;
             const stoppedAt = node.dataset.stoppedAt;
             if (!createdAt) return;
+
             const created = new Date(createdAt);
             const endTime = stoppedAt ? new Date(stoppedAt).getTime() : Date.now();
             const diffMs = Math.max(0, endTime - created.getTime());
@@ -26,24 +46,17 @@ function initTimers() {
             node.textContent = hoursValue > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
         });
     };
+
     tick();
     setInterval(tick, 1000);
 }
 
 function initSocket() {
-    const configElement = document.getElementById("operatorSocketConfig");
-    if (!configElement || typeof io === "undefined") return;
-
-    let config = {};
-    try {
-        config = JSON.parse(configElement.textContent || "{}");
-    } catch {
-        config = {};
-    }
+    if (typeof io === "undefined") return;
 
     const socket = io();
     socket.on("connect", () => {
-        socket.emit("join_operator_room", { branchId: Number(config.branchId || 0) });
+        socket.emit("join_operator_room", { branchId: Number(operatorSocketConfig.branchId || 0) });
     });
 
     let reloadQueued = false;
@@ -55,24 +68,39 @@ function initSocket() {
 }
 
 function initNewOrderAlert() {
-    const configElement = document.getElementById("operatorSocketConfig");
-    if (!configElement) return;
+    if (!operatorSocketConfig.hasNewOrders) return;
 
-    let config = {};
-    try {
-        config = JSON.parse(configElement.textContent || "{}");
-    } catch {
-        config = {};
-    }
+    newOrderAudio = new Audio("/static/resource/sound/new_order.mp3");
+    newOrderAudio.loop = true;
+    newOrderAudio.preload = "auto";
 
-    if (!config.hasNewOrders) return;
+    playNewOrderAlertIfEnabled();
+}
 
-    const audio = new Audio("/static/resource/sound/new_order.mp3");
-    audio.loop = true;
-    audio.preload = "auto";
+function initSoundSettings() {
+    updateSoundToggleButtons();
+
+    document.querySelectorAll("[data-operator-sound-toggle]").forEach(button => {
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            const nextValue = !isSoundEnabled();
+            setSoundEnabled(nextValue);
+            updateSoundToggleButtons();
+
+            if (nextValue) {
+                playNewOrderAlertIfEnabled();
+            } else {
+                stopNewOrderAlert();
+            }
+        });
+    });
+}
+
+function playNewOrderAlertIfEnabled() {
+    if (!newOrderAudio || !isSoundEnabled()) return;
 
     const tryPlay = () => {
-        audio.play().then(() => {
+        newOrderAudio.play().then(() => {
             cleanupUnlockListeners();
         }).catch(() => {
             bindUnlockListeners();
@@ -94,6 +122,41 @@ function initNewOrderAlert() {
     tryPlay();
 }
 
+function stopNewOrderAlert() {
+    if (!newOrderAudio) return;
+    newOrderAudio.pause();
+    newOrderAudio.currentTime = 0;
+}
+
+function isSoundEnabled() {
+    const storedValue = window.localStorage.getItem(SOUND_STORAGE_KEY);
+    return storedValue !== "off";
+}
+
+function setSoundEnabled(enabled) {
+    window.localStorage.setItem(SOUND_STORAGE_KEY, enabled ? "on" : "off");
+}
+
+function updateSoundToggleButtons() {
+    const enabled = isSoundEnabled();
+
+    document.querySelectorAll("[data-operator-sound-toggle]").forEach(button => {
+        const textNode = button.querySelector("[data-operator-sound-toggle-text]");
+        const iconNode = button.querySelector("[data-operator-sound-toggle-icon]");
+
+        if (textNode) {
+            textNode.textContent = enabled ? "Off sound" : "On sound";
+        }
+
+        if (iconNode) {
+            iconNode.className = enabled
+                ? "fa-solid fa-volume-high"
+                : "fa-solid fa-volume-xmark";
+            iconNode.setAttribute("aria-hidden", "true");
+        }
+    });
+}
+
 function initAccordions() {
     document.querySelectorAll("[data-operator-accordion-button]").forEach(button => {
         const targetId = button.dataset.target;
@@ -109,5 +172,22 @@ function initAccordions() {
             body.classList.toggle("hidden", !isHidden);
             icon?.classList.toggle("rotate-180", isHidden);
         });
+    });
+}
+
+function initOperatorMenus() {
+    const menus = Array.from(document.querySelectorAll("[data-operator-menu]"));
+    if (!menus.length) return;
+
+    document.addEventListener("click", event => {
+        menus.forEach(menu => {
+            if (menu.contains(event.target)) return;
+            menu.removeAttribute("open");
+        });
+    });
+
+    document.addEventListener("keydown", event => {
+        if (event.key !== "Escape") return;
+        menus.forEach(menu => menu.removeAttribute("open"));
     });
 }

@@ -29,5 +29,6 @@
 
 {% block scripts %}
 <script type="application/json" id="restaurantSlug">{{ restaurant.slug|tojson }}</script>
+<script type="application/json" id="clientOrdersSocketConfig">{{ {"restaurantId": restaurant.id}|tojson }}</script>
 <script type="module" src="/static/js/entries/client-orders.js"></script>
 {% endblock %}
