@@ -1,7 +1,7 @@
-import { fetchMenuData } from '../modules/api.js';
-import { applyTranslations, bindLangSwitcher, initI18n } from '../modules/i18n.js';
-import { readJsonScript, getRestaurantSlug } from '../modules/page-context.js';
-import { state, loadCartFromStorage, saveCartToStorage } from '../modules/state.js';
+import { fetchMenuData } from "../modules/api.js";
+import { applyTranslations, bindLangSwitcher, initI18n } from "../modules/i18n.js";
+import { readJsonScript, getRestaurantSlug } from "../modules/page-context.js";
+import { state, loadCartFromStorage, saveCartToStorage } from "../modules/state.js";
 
 const checkoutState = {
     currentStep: 1,
@@ -13,6 +13,8 @@ const checkoutState = {
     requestId: null,
     pendingAdvance: false,
     authStep: "phone",
+    orderAccordionOpen: true,
+    receiptPreviewUrl: null,
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -32,6 +34,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderCartSummary();
     renderBranches();
     syncAuthCard();
+    syncOrderAccordion();
+    updateTotals();
     updateStep();
 });
 
@@ -59,10 +63,15 @@ function bindCheckoutActions() {
     document.getElementById("checkoutOpenAuthBtn")?.addEventListener("click", openAuthModal);
     document.getElementById("checkoutAuthCloseBtn")?.addEventListener("click", closeAuthModal);
     document.getElementById("checkoutAuthModal")?.addEventListener("click", event => {
-        if (event.target === event.currentTarget) closeAuthModal();
+        if (event.target === event.currentTarget) {
+            closeAuthModal();
+        }
     });
+
     document.getElementById("checkoutAuthNextBtn")?.addEventListener("click", requestOtp);
     document.getElementById("checkoutAuthVerifyBtn")?.addEventListener("click", verifyOtp);
+    document.getElementById("checkoutOrderAccordionBtn")?.addEventListener("click", toggleOrderAccordion);
+    document.getElementById("checkoutReceipt")?.addEventListener("change", updateReceiptPreview);
 
     document.querySelectorAll("[data-otp-digit]").forEach((input, index, inputs) => {
         input.addEventListener("input", () => {
@@ -71,17 +80,25 @@ function bindCheckoutActions() {
                 inputs[index + 1].focus();
             }
         });
+
         input.addEventListener("keydown", event => {
             if (event.key === "Backspace" && !input.value && index > 0) {
                 inputs[index - 1].focus();
             }
         });
+
         input.addEventListener("paste", event => {
             event.preventDefault();
-            const digits = String(event.clipboardData?.getData("text") || "").replace(/\D/g, "").slice(0, inputs.length);
+            const digits = String(event.clipboardData?.getData("text") || "")
+                .replace(/\D/g, "")
+                .slice(0, inputs.length);
+
             digits.split("").forEach((digit, digitIndex) => {
-                if (inputs[digitIndex]) inputs[digitIndex].value = digit;
+                if (inputs[digitIndex]) {
+                    inputs[digitIndex].value = digit;
+                }
             });
+
             const targetIndex = Math.min(digits.length, inputs.length - 1);
             inputs[targetIndex]?.focus();
         });
@@ -98,16 +115,41 @@ function getCartItems() {
     return items;
 }
 
+function getSelectedBranch() {
+    return checkoutState.branches.find(item => Number(item.id) === Number(checkoutState.selectedBranchId)) || null;
+}
+
+function getSubtotal() {
+    return getCartItems().reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
+}
+
+function getDeliveryFee() {
+    return Number(getSelectedBranch()?.delivery_fee || 0);
+}
+
+function updateTotals() {
+    const subtotal = getSubtotal();
+    const delivery = getDeliveryFee();
+    const total = subtotal + delivery;
+
+    const subtotalEl = document.getElementById("checkoutSubtotalAmount");
+    const deliveryEl = document.getElementById("checkoutDeliveryAmount");
+    const totalEl = document.getElementById("checkoutTotalAmount");
+    const grandEl = document.getElementById("checkoutGrandTotalAmount");
+
+    if (subtotalEl) subtotalEl.textContent = `${subtotal} c`;
+    if (deliveryEl) deliveryEl.textContent = `${delivery} c`;
+    if (totalEl) totalEl.textContent = `${total}`;
+    if (grandEl) grandEl.textContent = `${total} c`;
+}
+
 function renderCartSummary() {
     const items = getCartItems();
     const container = document.getElementById("checkoutCartItems");
     const emptyState = document.getElementById("checkoutCartEmpty");
     const count = document.getElementById("checkoutCartCount");
-    const total = document.getElementById("checkoutTotalAmount");
-    if (!container || !emptyState || !count || !total) return;
+    if (!container || !emptyState || !count) return;
 
-    const grandTotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
-    total.textContent = String(grandTotal);
     count.textContent = `${items.length} позиций`;
 
     if (!items.length) {
@@ -115,6 +157,7 @@ function renderCartSummary() {
         emptyState.classList.remove("hidden");
         document.getElementById("checkoutNextBtn")?.setAttribute("disabled", "disabled");
         document.getElementById("checkoutSubmitBtn")?.setAttribute("disabled", "disabled");
+        updateTotals();
         return;
     }
 
@@ -133,6 +176,8 @@ function renderCartSummary() {
             </div>
         </div>
     `).join("");
+
+    updateTotals();
 }
 
 function renderBranches() {
@@ -145,6 +190,7 @@ function renderBranches() {
             <span class="checkout-branch-card__body">
                 <strong class="block text-slate-900">${escapeHtml(branch.name)}</strong>
                 <span class="mt-1 block text-sm text-slate-500">${escapeHtml(branch.address || "")}</span>
+                <span class="mt-3 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Доставка ${Number(branch.delivery_fee || 0)} c</span>
             </span>
         </label>
     `).join("");
@@ -153,10 +199,12 @@ function renderBranches() {
         input.addEventListener("change", () => {
             checkoutState.selectedBranchId = Number(input.value);
             updateBranchQr();
+            updateTotals();
         });
     });
 
     updateBranchQr();
+    updateTotals();
 }
 
 function syncAuthCard() {
@@ -178,7 +226,7 @@ function syncAuthCard() {
 }
 
 function updateBranchQr() {
-    const branch = checkoutState.branches.find(item => Number(item.id) === Number(checkoutState.selectedBranchId));
+    const branch = getSelectedBranch();
     const qrImage = document.getElementById("checkoutBranchQrImage");
     const qrEmpty = document.getElementById("checkoutBranchQrEmpty");
     if (!qrImage || !qrEmpty) return;
@@ -193,6 +241,106 @@ function updateBranchQr() {
     qrImage.src = "";
     qrImage.classList.add("hidden");
     qrEmpty.classList.remove("hidden");
+}
+
+function updateReceiptPreview() {
+    const input = document.getElementById("checkoutReceipt");
+    const preview = document.getElementById("checkoutReceiptPreview");
+    const empty = document.getElementById("checkoutReceiptEmpty");
+    const meta = document.getElementById("checkoutReceiptMeta");
+    const file = input?.files?.[0];
+    if (!preview || !empty || !meta) return;
+
+    if (checkoutState.receiptPreviewUrl) {
+        URL.revokeObjectURL(checkoutState.receiptPreviewUrl);
+        checkoutState.receiptPreviewUrl = null;
+    }
+
+    if (!file) {
+        preview.src = "";
+        preview.classList.add("hidden");
+        empty.classList.remove("hidden");
+        meta.textContent = "";
+        meta.classList.add("hidden");
+        return;
+    }
+
+    checkoutState.receiptPreviewUrl = URL.createObjectURL(file);
+    preview.src = checkoutState.receiptPreviewUrl;
+    preview.classList.remove("hidden");
+    empty.classList.add("hidden");
+    meta.textContent = `Файл: ${file.name} · ${formatFileSize(file.size)} · перед отправкой будет сжат в WEBP`;
+    meta.classList.remove("hidden");
+}
+
+async function getPreparedReceiptFile(file) {
+    if (!file || !file.type.startsWith("image/")) {
+        return file;
+    }
+
+    try {
+        return await compressImageToWebp(file);
+    } catch {
+        return file;
+    }
+}
+
+function compressImageToWebp(file, options = {}) {
+    const maxWidth = Number(options.maxWidth || 1280);
+    const maxHeight = Number(options.maxHeight || 1280);
+    const quality = Number(options.quality || 0.82);
+
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("read-failed"));
+        reader.onload = () => {
+            const image = new Image();
+            image.onerror = () => reject(new Error("image-load-failed"));
+            image.onload = () => {
+                let width = image.width;
+                let height = image.height;
+                const scale = Math.min(1, maxWidth / width, maxHeight / height);
+                width = Math.max(1, Math.round(width * scale));
+                height = Math.max(1, Math.round(height * scale));
+
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+                const context = canvas.getContext("2d");
+                if (!context) {
+                    reject(new Error("canvas-context-failed"));
+                    return;
+                }
+
+                context.drawImage(image, 0, 0, width, height);
+                canvas.toBlob(blob => {
+                    if (!blob) {
+                        reject(new Error("blob-failed"));
+                        return;
+                    }
+
+                    const baseName = file.name.replace(/\.[^.]+$/, "") || "receipt";
+                    resolve(new File([blob], `${baseName}.webp`, { type: "image/webp" }));
+                }, "image/webp", quality);
+            };
+            image.src = String(reader.result);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function syncOrderAccordion() {
+    const body = document.getElementById("checkoutOrderAccordionBody");
+    const icon = document.getElementById("checkoutOrderAccordionIcon");
+    if (!body || !icon) return;
+
+    body.classList.toggle("hidden", !checkoutState.orderAccordionOpen);
+    icon.classList.toggle("rotate-180", checkoutState.orderAccordionOpen);
+}
+
+function toggleOrderAccordion() {
+    checkoutState.orderAccordionOpen = !checkoutState.orderAccordionOpen;
+    syncOrderAccordion();
 }
 
 function updateStep() {
@@ -215,6 +363,7 @@ function onNextStep() {
         openAuthModal();
         return;
     }
+
     if (!validateStep(checkoutState.currentStep)) return;
     checkoutState.currentStep = Math.min(3, checkoutState.currentStep + 1);
     updateStep();
@@ -382,7 +531,7 @@ async function submitOrder(event) {
     formData.set("client_request_id", checkoutState.requestId);
     formData.set("cart", JSON.stringify(items.map(item => ({ id: item.id, qty: item.qty }))));
 
-    const receiptFile = receiptInput?.files?.[0];
+    const receiptFile = await getPreparedReceiptFile(receiptInput?.files?.[0]);
     if (receiptFile) {
         formData.set("receipt", receiptFile);
     }
@@ -454,6 +603,17 @@ function showAuthError(message) {
 
 function hideAuthError() {
     document.getElementById("checkoutAuthError")?.classList.add("hidden");
+}
+
+function formatFileSize(size) {
+    const bytes = Number(size || 0);
+    if (bytes >= 1024 * 1024) {
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    if (bytes >= 1024) {
+        return `${Math.round(bytes / 1024)} KB`;
+    }
+    return `${bytes} B`;
 }
 
 function escapeHtml(value) {

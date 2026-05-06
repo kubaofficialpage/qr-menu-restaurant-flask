@@ -57,6 +57,7 @@ def add_branch():
 
     name = request.form.get("name", "").strip()
     address = request.form.get("address", "").strip()
+    delivery_fee = request.form.get("delivery_fee", type=int) or 0
     is_active = request.form.get("is_active") == "on"
     qr_code = request.files.get("qr_code")
     qr_path = None
@@ -75,6 +76,7 @@ def add_branch():
                     restaurant_id=restaurant["id"],
                     name=name,
                     address=address,
+                    delivery_fee=max(0, delivery_fee),
                     qr_code_image=qr_path,
                     is_active=bool(is_active),
                 )
@@ -105,6 +107,7 @@ def edit_branch(branch_id):
 
     name = request.form.get("name", "").strip()
     address = request.form.get("address", "").strip()
+    delivery_fee = request.form.get("delivery_fee", type=int) or 0
     is_active = request.form.get("is_active") == "on"
     qr_code = request.files.get("qr_code")
     qr_path = branch.qr_code_image
@@ -122,6 +125,7 @@ def edit_branch(branch_id):
             managed_branch = managed_session.get(RestaurantBranch, branch_id)
             managed_branch.name = name
             managed_branch.address = address
+            managed_branch.delivery_fee = max(0, delivery_fee)
             managed_branch.qr_code_image = qr_path
             managed_branch.is_active = bool(is_active)
         if qr_path != previous_qr_path:

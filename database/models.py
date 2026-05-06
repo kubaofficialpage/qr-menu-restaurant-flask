@@ -167,6 +167,7 @@ class RestaurantBranch(TimestampMixin, db.Model):
     restaurant_id = db.Column(db.Integer, db.ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
     name = db.Column(db.String(160), nullable=False)
     address = db.Column(db.String(255), nullable=False)
+    delivery_fee = db.Column(db.Integer, nullable=False, server_default="0")
     qr_code_image = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, nullable=False, server_default=db.true())
 

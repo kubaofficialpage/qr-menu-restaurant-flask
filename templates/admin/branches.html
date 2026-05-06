@@ -15,7 +15,7 @@
 <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
         <h2 class="text-2xl font-bold tracking-tight">Филиалы ресторана</h2>
-        <p class="mt-1 text-sm text-slate-500">Управление адресами и QR-кодами оплаты для {{ restaurant.name }}.</p>
+        <p class="mt-1 text-sm text-slate-500">Управление адресами, QR-кодами и фиксированной стоимостью доставки для {{ restaurant.name }}.</p>
     </div>
     <button type="button" data-modal-template="branchCreateTemplate" data-modal-title="Добавить филиал" class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white sm:hidden">
         {{ ui.icon("plus") }}
@@ -30,6 +30,7 @@
                 <tr data-empty-row>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Филиал</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">QR</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Доставка</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Статус</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">On / Off</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Действия</th>
@@ -48,6 +49,9 @@
                         {% else %}
                         <span class="text-sm text-slate-400">Не загружен</span>
                         {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ branch.delivery_fee or 0 }} c</span>
                     </td>
                     <td class="px-4 py-3">
                         {% if branch.is_active %}
@@ -81,7 +85,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="px-4 py-12 text-center text-sm text-slate-500">Филиалов пока нет.</td>
+                    <td colspan="6" class="px-4 py-12 text-center text-sm text-slate-500">Филиалов пока нет.</td>
                 </tr>
                 {% endfor %}
             </tbody>

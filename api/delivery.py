@@ -85,7 +85,12 @@ def serialize_order(order):
     data["branch"] = serialize_branch(order.branch) if order.branch else None
     data["customer"] = serialize_customer(order.customer)
     data["receipt_url"] = f"/static/resource/{order.receipt_image}" if order.receipt_image else None
-    data["items"] = [model_to_dict(item) for item in order.items]
+    data["items"] = []
+    for item in order.items:
+        item_data = model_to_dict(item)
+        menu_item = getattr(item, "menu_item", None)
+        item_data["image_url"] = f"/static/resource/{menu_item.image}" if menu_item and getattr(menu_item, "image", None) else "/static/resource/img/default_food_png.png"
+        data["items"].append(item_data)
     data["detail_url"] = f"/{order.restaurant.slug}/orders/{order.id}" if getattr(order, "restaurant", None) else None
     data["can_customer_complete"] = order.status in {"accepted", "courier"}
     return data
@@ -173,7 +178,7 @@ def ensure_customer_verified(phone, full_name=None, address=None, otp_code=None)
     if existing_customer and existing_customer.phone_whatsapp == normalized_phone:
         return existing_customer, None
 
-    if otp_code != OTP_STUB_CODE:
+    if otp_code not in OTP_ACCEPTED_CODES:
         return None, "Подтвердите номер кодом OTP. Временно используется код 0000."
 
     with session_scope() as db_session:
@@ -364,6 +369,8 @@ def create_order(restaurant_slug):
         if not receipt_path:
             return jsonify({"ok": False, "message": "Чек должен быть в формате PNG, JPG или WEBP."}), 400
 
+    delivery_fee = max(0, int(getattr(branch, "delivery_fee", 0) or 0))
+
     with session_scope() as db_session:
         order = Order(
             order_number=next_order_number(),
@@ -374,6 +381,7 @@ def create_order(restaurant_slug):
             payment_status="receipt_uploaded" if receipt_path else "pending",
             delivery_address=address,
             customer_comment=comment,
+            delivery_fee=delivery_fee,
             receipt_image=receipt_path,
         )
         db_session.add(order)
@@ -395,7 +403,7 @@ def create_order(restaurant_slug):
             )
 
         order.subtotal_amount = subtotal
-        order.total_amount = subtotal
+        order.total_amount = subtotal + delivery_fee
         db_session.flush()
         created_order_id = order.id
 
@@ -403,7 +411,12 @@ def create_order(restaurant_slug):
 
     order = db_session.execute(
         select(Order)
-        .options(joinedload(Order.restaurant), joinedload(Order.branch), joinedload(Order.customer), joinedload(Order.items))
+        .options(
+            joinedload(Order.restaurant),
+            joinedload(Order.branch),
+            joinedload(Order.customer),
+            joinedload(Order.items).joinedload(OrderItem.menu_item),
+        )
         .where(Order.id == created_order_id)
     ).unique().scalar_one()
     emit_order_event(order, "operator_orders_changed")
@@ -420,7 +433,12 @@ def my_orders(restaurant_slug):
     db_session = get_session()
     orders = db_session.execute(
         select(Order)
-        .options(joinedload(Order.restaurant), joinedload(Order.branch), joinedload(Order.customer), joinedload(Order.items))
+        .options(
+            joinedload(Order.restaurant),
+            joinedload(Order.branch),
+            joinedload(Order.customer),
+            joinedload(Order.items).joinedload(OrderItem.menu_item),
+        )
         .where(Order.restaurant_id == restaurant.id, Order.customer_id == customer.id)
         .order_by(Order.created_at.desc())
     ).unique().scalars().all()
@@ -478,7 +496,12 @@ def customer_order_detail_page(restaurant_slug, order_id):
     db_session = get_session()
     order = db_session.execute(
         select(Order)
-        .options(joinedload(Order.restaurant), joinedload(Order.branch), joinedload(Order.customer), joinedload(Order.items))
+        .options(
+            joinedload(Order.restaurant),
+            joinedload(Order.branch),
+            joinedload(Order.customer),
+            joinedload(Order.items).joinedload(OrderItem.menu_item),
+        )
         .where(
             Order.id == order_id,
             Order.restaurant_id == restaurant.id,
@@ -522,7 +545,12 @@ def customer_complete_order(restaurant_slug, order_id):
     db_session = get_session()
     order = db_session.execute(
         select(Order)
-        .options(joinedload(Order.restaurant), joinedload(Order.branch), joinedload(Order.customer), joinedload(Order.items))
+        .options(
+            joinedload(Order.restaurant),
+            joinedload(Order.branch),
+            joinedload(Order.customer),
+            joinedload(Order.items).joinedload(OrderItem.menu_item),
+        )
         .where(Order.id == order_id)
     ).unique().scalar_one()
     emit_order_event(order, "operator_orders_changed")

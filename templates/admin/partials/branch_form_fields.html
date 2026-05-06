@@ -16,6 +16,12 @@
     </div>
 
     <div>
+        <label class="block text-sm font-medium text-slate-700">Стоимость доставки</label>
+        <input name="delivery_fee" type="number" min="0" value="{{ branch_form.delivery_fee if branch_form is defined else 0 }}" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+        <p class="mt-1 text-xs text-slate-500">Фиксированная сумма доставки для этого филиала.</p>
+    </div>
+
+    <div>
         {% set upload_label = "QR код для оплаты" %}
         {% set upload_name = "qr_code" %}
         {% set upload_current_src = "/static/resource/" ~ branch_form.qr_code_image if branch_form is defined and branch_form.qr_code_image else none %}

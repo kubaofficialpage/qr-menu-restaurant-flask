@@ -271,6 +271,49 @@ background:oklch(97% 0.01 260);
 color:oklch(47% 0.03 260);
 }
 
+.payment-chip input {
+position:absolute;
+opacity:0;
+pointer-events:none;
+}
+
+.payment-chip__body {
+display:inline-flex;
+align-items:center;
+gap:8px;
+padding:10px 14px;
+border:1px solid oklch(90% 0.01 260);
+border-radius:999px;
+background:#fff;
+font-size:13px;
+font-weight:700;
+cursor:pointer;
+transition:border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.payment-chip__body small {
+padding:2px 6px;
+border-radius:999px;
+background:oklch(97% 0.01 260);
+font-size:11px;
+font-weight:700;
+color:oklch(47% 0.03 260);
+}
+
+.payment-chip__body i {
+color:oklch(47% 0.13 210);
+}
+
+.payment-chip input:checked + .payment-chip__body {
+border-color:oklch(67% 0.18 145);
+box-shadow:0 0 0 4px oklch(84% 0.1 145 / 30%);
+transform:translateY(-1px);
+}
+
+.payment-chip--soon .payment-chip__body {
+background:oklch(97% 0.01 260);
+}
+
 .checkout-branch-card {
 display:block;
 cursor:pointer;
@@ -307,6 +350,60 @@ transform:translateZ(0);
 .checkout-auth-sheet {
 max-height:min(88vh, 760px);
 overflow:auto;
+}
+
+.receipt-upload-card {
+display:block;
+border:1.5px dashed oklch(86% 0.02 260);
+border-radius:28px;
+padding:14px;
+background:linear-gradient(180deg, oklch(99% 0.01 260), oklch(96% 0.01 260));
+cursor:pointer;
+transition:border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.receipt-upload-card:hover {
+border-color:oklch(67% 0.18 145);
+box-shadow:0 18px 40px oklch(20% 0.04 260 / 10%);
+transform:translateY(-1px);
+}
+
+.receipt-upload-card--compact {
+padding:12px;
+border-radius:24px;
+}
+
+.receipt-upload-card__placeholder {
+display:flex;
+align-items:center;
+gap:14px;
+min-height:160px;
+padding:8px;
+}
+
+.receipt-upload-card--compact .receipt-upload-card__placeholder {
+min-height:112px;
+padding:2px;
+}
+
+.receipt-upload-card__icon {
+display:flex;
+align-items:center;
+justify-content:center;
+width:56px;
+height:56px;
+border-radius:20px;
+background:#fff;
+font-size:22px;
+color:oklch(47% 0.13 210);
+box-shadow:0 10px 24px oklch(20% 0.04 260 / 8%);
+}
+
+.receipt-upload-card--compact .receipt-upload-card__icon {
+width:48px;
+height:48px;
+border-radius:16px;
+font-size:18px;
 }
 
 .otp-digit-input {
@@ -393,6 +490,36 @@ color:oklch(50% 0.03 260);
 .operator-bottom-nav.is-active {
 color:oklch(38% 0.15 145);
 background:linear-gradient(180deg, oklch(97% 0.05 145), rgba(255,255,255,0));
+}
+
+.order-detail-inline-meta {
+display:inline-flex;
+align-items:center;
+gap:8px;
+font-weight:600;
+color:oklch(38% 0.03 260);
+}
+
+.order-detail-inline-meta i {
+color:oklch(47% 0.13 210);
+}
+
+.order-detail-item {
+display:flex;
+align-items:center;
+gap:14px;
+padding:14px;
+border-radius:22px;
+background:oklch(98% 0.01 260);
+}
+
+.order-detail-item__image {
+width:68px;
+height:68px;
+border-radius:18px;
+object-fit:cover;
+flex-shrink:0;
+background:oklch(94% 0.01 260);
 }
 
 /* Cart tutorial */
