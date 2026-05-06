@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initTimers();
     initAccordions();
     initOperatorMenus();
+    initStopListToggles();
     initSoundSettings();
     initNewOrderAlert();
     initSocket();
@@ -189,5 +190,53 @@ function initOperatorMenus() {
     document.addEventListener("keydown", event => {
         if (event.key !== "Escape") return;
         menus.forEach(menu => menu.removeAttribute("open"));
+    });
+}
+
+function initStopListToggles() {
+    document.querySelectorAll("[data-stop-list-form]").forEach(form => {
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+
+            const button = form.querySelector("[data-stop-list-switch]");
+            const input = form.querySelector("[data-stop-list-input]");
+            const card = form.closest("[data-stop-list-item]");
+            const thumb = form.querySelector("[data-stop-list-thumb]");
+            if (!button || !input || !card || !thumb) return;
+
+            button.disabled = true;
+
+            try {
+                const body = new FormData();
+                body.set("is_available", input.value);
+
+                const response = await fetch(form.action, {
+                    method: "POST",
+                    headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+                    body,
+                });
+                const data = await response.json().catch(() => null);
+                if (!response.ok || !data?.ok) {
+                    throw new Error("toggle-failed");
+                }
+
+                const isAvailable = Boolean(data.isAvailable);
+                input.value = isAvailable ? "off" : "on";
+
+                button.classList.toggle("bg-emerald-500", isAvailable);
+                button.classList.toggle("bg-slate-300", !isAvailable);
+                thumb.classList.toggle("translate-x-8", isAvailable);
+                thumb.classList.toggle("translate-x-0", !isAvailable);
+                card.classList.toggle("border-slate-200", isAvailable);
+                card.classList.toggle("bg-slate-50/70", isAvailable);
+                card.classList.toggle("border-amber-200", !isAvailable);
+                card.classList.toggle("bg-amber-50", !isAvailable);
+            } catch {
+                button.disabled = false;
+                return;
+            }
+
+            button.disabled = false;
+        });
     });
 }

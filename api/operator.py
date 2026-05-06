@@ -1,6 +1,6 @@
 from functools import wraps
 
-from flask import Blueprint, abort, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
 from flask_socketio import emit, join_room
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -8,7 +8,7 @@ from werkzeug.security import check_password_hash
 
 from database.db import get_session, session_scope
 from database.extensions import socketio
-from database.models import Category, MenuItem, Operator, Order, Restaurant, RestaurantBranch
+from database.models import BranchStopListItem, Category, MenuItem, Operator, Order, Restaurant, RestaurantBranch
 
 from .delivery import ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, serialize_order, update_order_status_timestamps
 
@@ -77,6 +77,13 @@ def format_order_duration(order):
 
 def get_stop_list_groups(operator):
     db_session = get_session()
+    stop_list_ids = set()
+    if operator.branch_id:
+        stop_list_ids = set(
+            db_session.execute(
+                select(BranchStopListItem.menu_item_id).where(BranchStopListItem.branch_id == operator.branch_id)
+            ).scalars().all()
+        )
     categories = db_session.execute(
         select(Category)
         .where(Category.restaurant_id == operator.restaurant_id, Category.is_active.is_(True))
@@ -94,6 +101,7 @@ def get_stop_list_groups(operator):
     uncategorized_items = []
 
     for item in menu_items:
+        item.branch_is_available = item.is_available and item.id not in stop_list_ids
         if item.category_id:
             items_by_category_id.setdefault(item.category_id, []).append(item)
         else:
@@ -160,8 +168,9 @@ def dashboard():
 @operator_required
 def stop_list():
     operator = current_operator()
+    branch_missing = not bool(operator.branch_id)
     groups = get_stop_list_groups(operator)
-    unavailable_count = sum(1 for group in groups for item in group["items"] if not item.is_available)
+    unavailable_count = sum(1 for group in groups for item in group["items"] if not getattr(item, "branch_is_available", item.is_available))
     total_count = sum(len(group["items"]) for group in groups)
     return render_template(
         "operator/stop_list.html",
@@ -170,6 +179,7 @@ def stop_list():
         unavailable_count=unavailable_count,
         total_count=total_count,
         has_new_orders=operator_has_new_orders(operator),
+        branch_missing=branch_missing,
     )
 
 
@@ -249,7 +259,10 @@ def update_order(order_id):
 @operator_required
 def toggle_stop_list_item(item_id):
     operator = current_operator()
-    is_available = request.form.get("is_available") == "on"
+    if not operator.branch_id:
+        abort(400)
+
+    desired_available = request.form.get("is_available") == "on"
 
     with session_scope() as db_session:
         item = db_session.execute(
@@ -257,8 +270,21 @@ def toggle_stop_list_item(item_id):
         ).scalar_one_or_none()
         if not item:
             abort(404)
-        item.is_available = is_available
+        stop_entry = db_session.execute(
+            select(BranchStopListItem).where(
+                BranchStopListItem.branch_id == operator.branch_id,
+                BranchStopListItem.menu_item_id == item.id,
+            )
+        ).scalar_one_or_none()
 
+        if desired_available:
+            if stop_entry:
+                db_session.delete(stop_entry)
+        elif not stop_entry:
+            db_session.add(BranchStopListItem(branch_id=operator.branch_id, menu_item_id=item.id))
+
+    if request.accept_mimetypes.best == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "itemId": item_id, "isAvailable": bool(item.is_available and desired_available)})
     return redirect(url_for("operator.stop_list"))
 
 

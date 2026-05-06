@@ -19,3 +19,14 @@ export function getRestaurantSlug() {
 
     return null;
 }
+
+export function getRestaurantBranchPublicId() {
+    const fromScript = readJsonScript("restaurantBranchPublicId");
+    if (typeof fromScript === "string" || fromScript === null) return fromScript;
+
+    if (typeof window.RESTAURANT_BRANCH_PUBLIC_ID === "string" || window.RESTAURANT_BRANCH_PUBLIC_ID === null) {
+        return window.RESTAURANT_BRANCH_PUBLIC_ID;
+    }
+
+    return null;
+}

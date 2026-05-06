@@ -4,12 +4,13 @@ import uuid
 from datetime import datetime
 
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
+from flask_socketio import emit, join_room
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from database.db import get_session, session_scope
 from database.extensions import socketio
-from database.models import Customer, MenuItem, Order, OrderItem, Restaurant, RestaurantBranch
+from database.models import BranchStopListItem, Customer, MenuItem, Order, OrderItem, Restaurant, RestaurantBranch
 
 delivery_api = Blueprint("delivery_api", __name__)
 
@@ -21,9 +22,7 @@ CHECKOUT_SUBMISSION_MAP_KEY = "checkout_submission_map"
 OTP_ACCEPTED_CODES = {OTP_STUB_CODE, "0000"}
 
 RESOURCE_ROOT = os.path.join("static", "resource")
-OPERATOR_AVATAR_FOLDER = os.path.join(RESOURCE_ROOT, "operator_avatars")
 ORDER_RECEIPT_FOLDER = os.path.join(RESOURCE_ROOT, "order_receipts")
-BRANCH_QR_FOLDER = os.path.join(RESOURCE_ROOT, "branch_qr")
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
 ORDER_STATUS_LABELS = {
@@ -33,7 +32,6 @@ ORDER_STATUS_LABELS = {
     "completed": "Завершен",
     "cancelled": "Отменен",
 }
-
 
 PAYMENT_STATUS_LABELS = {
     "pending": "Неоплачено",
@@ -77,6 +75,8 @@ def model_to_dict(model):
 
 
 def serialize_branch(branch):
+    if not branch:
+        return None
     data = model_to_dict(branch)
     data["qr_code_url"] = f"/static/resource/{branch.qr_code_image}" if branch.qr_code_image else None
     return data
@@ -84,27 +84,6 @@ def serialize_branch(branch):
 
 def serialize_customer(customer):
     return model_to_dict(customer) if customer else None
-
-
-def serialize_order(order):
-    data = model_to_dict(order)
-    data["status_label"] = ORDER_STATUS_LABELS.get(order.status, order.status)
-    data["payment_status_label"] = PAYMENT_STATUS_LABELS.get(order.payment_status, order.payment_status)
-    data["branch"] = serialize_branch(order.branch) if order.branch else None
-    data["customer"] = serialize_customer(order.customer)
-    data["receipt_url"] = f"/static/resource/{order.receipt_image}" if order.receipt_image else None
-    data["items"] = []
-    for item in order.items:
-        item_data = model_to_dict(item)
-        menu_item = getattr(item, "menu_item", None)
-        item_data["image_url"] = f"/static/resource/{menu_item.image}" if menu_item and getattr(menu_item, "image", None) else "/static/resource/img/default_food_png.png"
-        data["items"].append(item_data)
-    data["detail_url"] = f"/order/{order.public_id}" if getattr(order, "public_id", None) else None
-    data["can_customer_complete"] = order.status in {"accepted", "courier"}
-    timer_stopped_at = get_order_timer_stopped_at(order)
-    data["timer_stopped_at"] = serialize_value(timer_stopped_at)
-    data["final_duration_seconds"] = get_order_final_duration_seconds(order)
-    return data
 
 
 def get_order_timer_stopped_at(order):
@@ -118,6 +97,36 @@ def get_order_final_duration_seconds(order):
     if not timer_stopped_at:
         return None
     return max(0, int((timer_stopped_at - order.created_at).total_seconds()))
+
+
+def serialize_order(order):
+    data = model_to_dict(order)
+    data["status_label"] = ORDER_STATUS_LABELS.get(order.status, order.status)
+    data["payment_status_label"] = PAYMENT_STATUS_LABELS.get(order.payment_status, order.payment_status)
+    data["branch"] = serialize_branch(order.branch)
+    data["customer"] = serialize_customer(order.customer)
+    data["receipt_url"] = f"/static/resource/{order.receipt_image}" if order.receipt_image else None
+    data["items"] = []
+    for item in order.items:
+        item_data = model_to_dict(item)
+        menu_item = getattr(item, "menu_item", None)
+        item_data["image_url"] = (
+            f"/static/resource/{menu_item.image}"
+            if menu_item and getattr(menu_item, "image", None)
+            else "/static/resource/img/default_food_png.png"
+        )
+        data["items"].append(item_data)
+
+    if getattr(order, "restaurant", None) and getattr(order, "branch", None):
+        data["detail_url"] = f"/{order.restaurant.slug}/{order.branch.public_id}/orders/{order.id}"
+    else:
+        data["detail_url"] = f"/order/{order.public_id}" if getattr(order, "public_id", None) else None
+
+    data["can_customer_complete"] = order.status in {"accepted", "courier"}
+    timer_stopped_at = get_order_timer_stopped_at(order)
+    data["timer_stopped_at"] = serialize_value(timer_stopped_at)
+    data["final_duration_seconds"] = get_order_final_duration_seconds(order)
+    return data
 
 
 def update_order_status_timestamps(order, new_status):
@@ -145,27 +154,46 @@ def update_order_status_timestamps(order, new_status):
     order.status = new_status
 
 
-def get_checkout_payload(restaurant):
+def get_restaurant_or_404(restaurant_slug):
     db_session = get_session()
-    branches = db_session.execute(
-        select(RestaurantBranch)
-        .where(RestaurantBranch.restaurant_id == restaurant.id, RestaurantBranch.is_active.is_(True))
-        .order_by(RestaurantBranch.name)
-    ).scalars().all()
-    return {
+    return db_session.execute(
+        select(Restaurant).where(Restaurant.slug == restaurant_slug, Restaurant.is_active.is_(True))
+    ).scalar_one_or_none()
+
+
+def get_restaurant_branch(restaurant_slug, branch_public_id):
+    restaurant = get_restaurant_or_404(restaurant_slug)
+    if not restaurant:
+        return None, None
+
+    db_session = get_session()
+    branch = db_session.execute(
+        select(RestaurantBranch).where(
+            RestaurantBranch.restaurant_id == restaurant.id,
+            RestaurantBranch.public_id == branch_public_id,
+            RestaurantBranch.is_active.is_(True),
+        )
+    ).scalar_one_or_none()
+    return restaurant, branch
+
+
+def get_checkout_payload(restaurant, branch=None):
+    payload = {
         "restaurant": model_to_dict(restaurant),
-        "branches": [serialize_branch(branch) for branch in branches],
         "customer": serialize_customer(current_customer()),
         "otpStubCode": OTP_STUB_CODE,
     }
-
-
-def get_restaurant_or_404(restaurant_slug):
-    db_session = get_session()
-    restaurant = db_session.execute(
-        select(Restaurant).where(Restaurant.slug == restaurant_slug, Restaurant.is_active.is_(True))
-    ).scalar_one_or_none()
-    return restaurant
+    if branch:
+        payload["branch"] = serialize_branch(branch)
+    else:
+        db_session = get_session()
+        branches = db_session.execute(
+            select(RestaurantBranch)
+            .where(RestaurantBranch.restaurant_id == restaurant.id, RestaurantBranch.is_active.is_(True))
+            .order_by(RestaurantBranch.name)
+        ).scalars().all()
+        payload["branches"] = [serialize_branch(branch_item) for branch_item in branches]
+    return payload
 
 
 def current_customer():
@@ -201,7 +229,12 @@ def get_checkout_submission_order(request_id):
     db_session = get_session()
     return db_session.execute(
         select(Order)
-        .options(joinedload(Order.restaurant), joinedload(Order.branch), joinedload(Order.customer), joinedload(Order.items))
+        .options(
+            joinedload(Order.restaurant),
+            joinedload(Order.branch),
+            joinedload(Order.customer),
+            joinedload(Order.items).joinedload(OrderItem.menu_item),
+        )
         .where(Order.id == order_id)
     ).unique().scalar_one_or_none()
 
@@ -248,7 +281,6 @@ def ensure_customer_verified(phone, full_name=None, address=None, otp_code=None)
             db_session.add(customer)
             db_session.flush()
 
-        db_session.flush()
         sign_in_customer(customer)
         customer_id = customer.id
 
@@ -267,6 +299,7 @@ def parse_cart_items(raw_cart):
         return None
     if not isinstance(items, list):
         return None
+
     normalized = []
     for item in items:
         if not isinstance(item, dict):
@@ -280,6 +313,14 @@ def parse_cart_items(raw_cart):
             continue
         normalized.append({"id": item_id, "qty": quantity})
     return normalized
+
+
+def get_branch_stop_list_ids(branch_id):
+    db_session = get_session()
+    rows = db_session.execute(
+        select(BranchStopListItem.menu_item_id).where(BranchStopListItem.branch_id == branch_id)
+    ).scalars().all()
+    return set(rows)
 
 
 def emit_order_event(order, event_name):
@@ -309,9 +350,7 @@ def request_customer_otp():
         return jsonify({"ok": False, "message": "Укажите номер WhatsApp."}), 400
 
     session[CUSTOMER_PENDING_PHONE_KEY] = phone
-
-    db_session = get_session()
-    existing = db_session.execute(select(Customer.id).where(Customer.phone_whatsapp == phone)).first() is not None
+    existing = get_session().execute(select(Customer.id).where(Customer.phone_whatsapp == phone)).first() is not None
     return jsonify(
         {
             "ok": True,
@@ -336,23 +375,34 @@ def verify_customer_otp():
     customer, error = ensure_customer_verified(phone, full_name=full_name, address=address, otp_code=code)
     if error:
         return jsonify({"ok": False, "message": error}), 400
-
     return jsonify({"ok": True, "customer": serialize_customer(customer)})
 
 
 @delivery_api.route("/api/<restaurant_slug>/checkout/options")
-def checkout_options(restaurant_slug):
+@delivery_api.route("/api/<restaurant_slug>/<branch_public_id>/checkout/options")
+def checkout_options(restaurant_slug, branch_public_id=None):
     restaurant = get_restaurant_or_404(restaurant_slug)
+    branch = None
+    if branch_public_id:
+        restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
     if not restaurant:
         return jsonify({"ok": False, "message": "Ресторан не найден."}), 404
-    return jsonify({"ok": True, **get_checkout_payload(restaurant)})
+    if branch_public_id and not branch:
+        return jsonify({"ok": False, "message": "Филиал не найден."}), 404
+    return jsonify({"ok": True, **get_checkout_payload(restaurant, branch=branch)})
 
 
 @delivery_api.route("/api/<restaurant_slug>/orders", methods=["POST"])
-def create_order(restaurant_slug):
+@delivery_api.route("/api/<restaurant_slug>/<branch_public_id>/orders", methods=["POST"])
+def create_order(restaurant_slug, branch_public_id=None):
     restaurant = get_restaurant_or_404(restaurant_slug)
+    branch = None
+    if branch_public_id:
+        restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
     if not restaurant:
         return jsonify({"ok": False, "message": "Ресторан не найден."}), 404
+    if branch_public_id and not branch:
+        return jsonify({"ok": False, "message": "Филиал не найден."}), 404
 
     existing_customer = current_customer()
     full_name = request.form.get("full_name", "").strip()
@@ -361,7 +411,7 @@ def create_order(restaurant_slug):
     comment = request.form.get("comment", "").strip() or None
     otp_code = request.form.get("otp_code", "").strip()
     payment_type = request.form.get("payment_type", "online").strip()
-    branch_id = request.form.get("branch_id", "").strip()
+    branch_id_raw = request.form.get("branch_id", "").strip()
     client_request_id = request.form.get("client_request_id", "").strip()
     cart_items = parse_cart_items(request.form.get("cart"))
     receipt_image = request.files.get("receipt")
@@ -376,8 +426,6 @@ def create_order(restaurant_slug):
         if not existing_customer or repeated_order.customer_id == existing_customer.id:
             return jsonify({"ok": True, "order": serialize_order(repeated_order), "duplicate": True})
 
-    if not full_name:
-        return jsonify({"ok": False, "message": "Укажите имя клиента."}), 400
     if not phone:
         return jsonify({"ok": False, "message": "Укажите номер WhatsApp."}), 400
     if not address:
@@ -392,41 +440,46 @@ def create_order(restaurant_slug):
         return jsonify({"ok": False, "message": error}), 400
 
     db_session = get_session()
-    try:
-        branch_id = int(branch_id)
-    except (TypeError, ValueError):
-        return jsonify({"ok": False, "message": "Выберите филиал."}), 400
-
-    branch = db_session.execute(
-        select(RestaurantBranch)
-        .where(
-            RestaurantBranch.id == branch_id,
-            RestaurantBranch.restaurant_id == restaurant.id,
-            RestaurantBranch.is_active.is_(True),
-        )
-    ).scalar_one_or_none()
     if not branch:
-        return jsonify({"ok": False, "message": "Филиал не найден."}), 404
+        try:
+            branch_id = int(branch_id_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "Выберите филиал."}), 400
 
+        branch = db_session.execute(
+            select(RestaurantBranch).where(
+                RestaurantBranch.id == branch_id,
+                RestaurantBranch.restaurant_id == restaurant.id,
+                RestaurantBranch.is_active.is_(True),
+            )
+        ).scalar_one_or_none()
+        if not branch:
+            return jsonify({"ok": False, "message": "Филиал не найден."}), 404
+
+    stop_list_ids = get_branch_stop_list_ids(branch.id)
     item_ids = [item["id"] for item in cart_items]
     menu_items = db_session.execute(
-        select(MenuItem)
-        .where(MenuItem.restaurant_id == restaurant.id, MenuItem.id.in_(item_ids), MenuItem.is_available.is_(True))
+        select(MenuItem).where(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.id.in_(item_ids),
+            MenuItem.is_available.is_(True),
+        )
     ).scalars().all()
+    menu_items = [item for item in menu_items if item.id not in stop_list_ids]
     menu_by_id = {item.id: item for item in menu_items}
     if len(menu_by_id) != len(set(item_ids)):
         return jsonify({"ok": False, "message": "Некоторые блюда недоступны."}), 400
 
-    subtotal = 0
     receipt_path = None
     if receipt_image and receipt_image.filename:
         receipt_path = save_uploaded_file(receipt_image, ORDER_RECEIPT_FOLDER, "order_receipts")
         if not receipt_path:
             return jsonify({"ok": False, "message": "Чек должен быть в формате PNG, JPG или WEBP."}), 400
 
+    subtotal = 0
     delivery_fee = max(0, int(getattr(branch, "delivery_fee", 0) or 0))
 
-    with session_scope() as db_session:
+    with session_scope() as db_write:
         order = Order(
             public_id=uuid.uuid4().hex,
             order_number=next_order_number(),
@@ -440,14 +493,13 @@ def create_order(restaurant_slug):
             delivery_fee=delivery_fee,
             receipt_image=receipt_path,
         )
-        db_session.add(order)
-        db_session.flush()
+        db_write.add(order)
+        db_write.flush()
 
         for cart_item in cart_items:
             menu_item = menu_by_id[cart_item["id"]]
-            line_total = menu_item.price * cart_item["qty"]
-            subtotal += line_total
-            db_session.add(
+            subtotal += menu_item.price * cart_item["qty"]
+            db_write.add(
                 OrderItem(
                     order_id=order.id,
                     menu_item_id=menu_item.id,
@@ -460,12 +512,12 @@ def create_order(restaurant_slug):
 
         order.subtotal_amount = subtotal
         order.total_amount = subtotal + delivery_fee
-        db_session.flush()
+        db_write.flush()
         created_order_id = order.id
 
     remember_checkout_submission(client_request_id, created_order_id)
 
-    order = db_session.execute(
+    order = get_session().execute(
         select(Order)
         .options(
             joinedload(Order.restaurant),
@@ -480,14 +532,20 @@ def create_order(restaurant_slug):
 
 
 @delivery_api.route("/api/<restaurant_slug>/orders/my")
-def my_orders(restaurant_slug):
+@delivery_api.route("/api/<restaurant_slug>/<branch_public_id>/orders/my")
+def my_orders(restaurant_slug, branch_public_id=None):
     restaurant = get_restaurant_or_404(restaurant_slug)
     customer = current_customer()
     if not restaurant or not customer:
         return jsonify({"ok": True, "orders": []})
 
-    db_session = get_session()
-    orders = db_session.execute(
+    branch = None
+    if branch_public_id:
+        restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
+        if not restaurant or not branch:
+            return jsonify({"ok": True, "orders": []})
+
+    query = (
         select(Order)
         .options(
             joinedload(Order.restaurant),
@@ -497,60 +555,65 @@ def my_orders(restaurant_slug):
         )
         .where(Order.restaurant_id == restaurant.id, Order.customer_id == customer.id)
         .order_by(Order.created_at.desc())
-    ).unique().scalars().all()
+    )
+    if branch:
+        query = query.where(Order.branch_id == branch.id)
+
+    orders = get_session().execute(query).unique().scalars().all()
     return jsonify({"ok": True, "orders": [serialize_order(order) for order in orders]})
 
 
-@delivery_api.route("/<restaurant_slug>/orders")
-def customer_orders_page(restaurant_slug):
-    restaurant = get_restaurant_or_404(restaurant_slug)
-    if not restaurant:
+@delivery_api.route("/<restaurant_slug>/<branch_public_id>/orders")
+def customer_orders_page(restaurant_slug, branch_public_id):
+    restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
+    if not restaurant or not branch:
         return render_template("client/404.html"), 404
-    return render_template("client/orders.html", restaurant=model_to_dict(restaurant))
+    return render_template("client/orders.html", restaurant=model_to_dict(restaurant), branch=serialize_branch(branch))
 
 
-@delivery_api.route("/<restaurant_slug>/checkout")
-def customer_checkout_page(restaurant_slug):
-    restaurant = get_restaurant_or_404(restaurant_slug)
-    if not restaurant:
+@delivery_api.route("/<restaurant_slug>/<branch_public_id>/checkout")
+def customer_checkout_page(restaurant_slug, branch_public_id):
+    restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
+    if not restaurant or not branch:
         return render_template("client/404.html"), 404
     return render_template(
         "client/checkout.html",
         restaurant=model_to_dict(restaurant),
-        checkout_data=get_checkout_payload(restaurant),
+        branch=serialize_branch(branch),
+        checkout_data=get_checkout_payload(restaurant, branch=branch),
     )
 
 
-@delivery_api.route("/<restaurant_slug>/me")
-def customer_profile_page(restaurant_slug):
-    restaurant = get_restaurant_or_404(restaurant_slug)
-    if not restaurant:
+@delivery_api.route("/<restaurant_slug>/<branch_public_id>/me")
+def customer_profile_page(restaurant_slug, branch_public_id):
+    restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
+    if not restaurant or not branch:
         return render_template("client/404.html"), 404
     return render_template(
         "client/profile.html",
         restaurant=model_to_dict(restaurant),
+        branch=serialize_branch(branch),
         customer=serialize_customer(current_customer()),
     )
 
 
-@delivery_api.route("/<restaurant_slug>/me/logout", methods=["POST"])
-def customer_logout(restaurant_slug):
-    restaurant = get_restaurant_or_404(restaurant_slug)
-    if not restaurant:
+@delivery_api.route("/<restaurant_slug>/<branch_public_id>/me/logout", methods=["POST"])
+def customer_logout(restaurant_slug, branch_public_id):
+    restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
+    if not restaurant or not branch:
         return render_template("client/404.html"), 404
     sign_out_customer()
-    return redirect(url_for("delivery_api.customer_profile_page", restaurant_slug=restaurant_slug))
+    return redirect(url_for("delivery_api.customer_profile_page", restaurant_slug=restaurant_slug, branch_public_id=branch_public_id))
 
 
-@delivery_api.route("/<restaurant_slug>/orders/<int:order_id>")
-def customer_order_detail_page(restaurant_slug, order_id):
-    restaurant = get_restaurant_or_404(restaurant_slug)
+@delivery_api.route("/<restaurant_slug>/<branch_public_id>/orders/<int:order_id>")
+def customer_order_detail_page(restaurant_slug, branch_public_id, order_id):
+    restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
     customer = current_customer()
-    if not restaurant or not customer:
+    if not restaurant or not branch or not customer:
         return render_template("client/404.html"), 404
 
-    db_session = get_session()
-    order = db_session.execute(
+    order = get_session().execute(
         select(Order)
         .options(
             joinedload(Order.restaurant),
@@ -561,6 +624,7 @@ def customer_order_detail_page(restaurant_slug, order_id):
         .where(
             Order.id == order_id,
             Order.restaurant_id == restaurant.id,
+            Order.branch_id == branch.id,
             Order.customer_id == customer.id,
         )
     ).unique().scalar_one_or_none()
@@ -570,14 +634,14 @@ def customer_order_detail_page(restaurant_slug, order_id):
     return render_template(
         "client/order_detail.html",
         restaurant=model_to_dict(restaurant),
+        branch=serialize_branch(branch),
         order=serialize_order(order),
     )
 
 
 @delivery_api.route("/order/<public_id>")
 def public_order_detail_page(public_id):
-    db_session = get_session()
-    order = db_session.execute(
+    order = get_session().execute(
         select(Order)
         .options(
             joinedload(Order.restaurant),
@@ -598,15 +662,16 @@ def public_order_detail_page(public_id):
     return render_template(
         "client/order_detail.html",
         restaurant=model_to_dict(order.restaurant),
+        branch=serialize_branch(order.branch),
         order=order_data,
     )
 
 
-@delivery_api.route("/<restaurant_slug>/orders/<int:order_id>/complete", methods=["POST"])
-def customer_complete_order(restaurant_slug, order_id):
-    restaurant = get_restaurant_or_404(restaurant_slug)
+@delivery_api.route("/<restaurant_slug>/<branch_public_id>/orders/<int:order_id>/complete", methods=["POST"])
+def customer_complete_order(restaurant_slug, branch_public_id, order_id):
+    restaurant, branch = get_restaurant_branch(restaurant_slug, branch_public_id)
     customer = current_customer()
-    if not restaurant or not customer:
+    if not restaurant or not branch or not customer:
         return render_template("client/404.html"), 404
 
     with session_scope() as db_session:
@@ -614,6 +679,7 @@ def customer_complete_order(restaurant_slug, order_id):
             select(Order).where(
                 Order.id == order_id,
                 Order.restaurant_id == restaurant.id,
+                Order.branch_id == branch.id,
                 Order.customer_id == customer.id,
             )
         ).scalar_one_or_none()
@@ -621,13 +687,17 @@ def customer_complete_order(restaurant_slug, order_id):
             return render_template("client/404.html"), 404
         if order.status not in {"accepted", "courier"}:
             return redirect(
-                url_for("delivery_api.customer_order_detail_page", restaurant_slug=restaurant_slug, order_id=order_id)
+                url_for(
+                    "delivery_api.customer_order_detail_page",
+                    restaurant_slug=restaurant_slug,
+                    branch_public_id=branch_public_id,
+                    order_id=order_id,
+                )
             )
         update_order_status_timestamps(order, "completed")
         db_session.flush()
 
-    db_session = get_session()
-    order = db_session.execute(
+    order = get_session().execute(
         select(Order)
         .options(
             joinedload(Order.restaurant),
@@ -638,13 +708,18 @@ def customer_complete_order(restaurant_slug, order_id):
         .where(Order.id == order_id)
     ).unique().scalar_one()
     emit_order_event(order, "operator_orders_changed")
-    return redirect(url_for("delivery_api.customer_order_detail_page", restaurant_slug=restaurant_slug, order_id=order_id))
+    return redirect(
+        url_for(
+            "delivery_api.customer_order_detail_page",
+            restaurant_slug=restaurant_slug,
+            branch_public_id=branch_public_id,
+            order_id=order_id,
+        )
+    )
 
 
 @socketio.on("join_customer_room")
 def on_join_customer_room(data):
-    from flask_socketio import join_room, emit
-
     payload = data or {}
     restaurant_id = int(payload.get("restaurantId") or 0)
     order_id = int(payload.get("orderId") or 0)

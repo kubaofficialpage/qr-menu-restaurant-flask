@@ -11,6 +11,9 @@ from config import SQLALCHEMY_DATABASE_URI
 from database.analytics import get_or_create_analytics_session, record_restaurant_visit
 from database.extensions import db, migrate, socketio
 import database.models
+from database.db import get_session
+from sqlalchemy import select
+from database.models import RestaurantBranch
 
 load_dotenv()
 
@@ -53,16 +56,59 @@ def restaurant_home(restaurant_slug):
     record_restaurant_visit(restaurant["id"], session_id, request.path)
     if not restaurant.get("is_active"):
         return render_template("client/restaurant_unavailable.html", restaurant=restaurant), 503
-    return render_template("client/index.html", restaurant=restaurant)
 
-@app.route("/<restaurant_slug>/cart")
-def restaurant_cart(restaurant_slug):
+    db_session = get_session()
+    branches = db_session.execute(
+        select(RestaurantBranch)
+        .where(RestaurantBranch.restaurant_id == restaurant["id"], RestaurantBranch.is_active.is_(True))
+        .order_by(RestaurantBranch.name)
+    ).scalars().all()
+
+    if len(branches) == 1:
+        return redirect(url_for("restaurant_branch_home", restaurant_slug=restaurant_slug, branch_public_id=branches[0].public_id))
+
+    return render_template("client/branch_picker.html", restaurant=restaurant, branches=branches)
+
+
+@app.route("/<restaurant_slug>/<branch_public_id>")
+def restaurant_branch_home(restaurant_slug, branch_public_id):
     restaurant = get_restaurant_by_slug_any_status(restaurant_slug)
     if not restaurant:
         abort(404)
     if not restaurant.get("is_active"):
         return render_template("client/restaurant_unavailable.html", restaurant=restaurant), 503
-    return render_template("client/cart.html", restaurant=restaurant)
+
+    db_session = get_session()
+    branch = db_session.execute(
+        select(RestaurantBranch).where(
+            RestaurantBranch.restaurant_id == restaurant["id"],
+            RestaurantBranch.public_id == branch_public_id,
+            RestaurantBranch.is_active.is_(True),
+        )
+    ).scalar_one_or_none()
+    if not branch:
+        abort(404)
+
+    return render_template("client/index.html", restaurant=restaurant, branch=branch)
+
+@app.route("/<restaurant_slug>/<branch_public_id>/cart")
+def restaurant_cart(restaurant_slug, branch_public_id):
+    restaurant = get_restaurant_by_slug_any_status(restaurant_slug)
+    if not restaurant:
+        abort(404)
+    if not restaurant.get("is_active"):
+        return render_template("client/restaurant_unavailable.html", restaurant=restaurant), 503
+    db_session = get_session()
+    branch = db_session.execute(
+        select(RestaurantBranch).where(
+            RestaurantBranch.restaurant_id == restaurant["id"],
+            RestaurantBranch.public_id == branch_public_id,
+            RestaurantBranch.is_active.is_(True),
+        )
+    ).scalar_one_or_none()
+    if not branch:
+        abort(404)
+    return render_template("client/cart.html", restaurant=restaurant, branch=branch)
 
 @app.errorhandler(404)
 def page_not_found(error):

@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 
 from database.analytics import get_or_create_analytics_session, record_menu_cart_add
 from database.db import get_session
-from database.models import Category, MenuItem, Restaurant
+from database.models import BranchStopListItem, Category, MenuItem, Restaurant, RestaurantBranch
 
 menu_api = Blueprint("menu_api", __name__)
 
@@ -103,6 +103,25 @@ def get_restaurant_menu(restaurant_id):
     return menu, categories
 
 
+def get_branch_by_public_id(restaurant_id, branch_public_id):
+    db_session = get_session()
+    return db_session.execute(
+        select(RestaurantBranch).where(
+            RestaurantBranch.restaurant_id == restaurant_id,
+            RestaurantBranch.public_id == branch_public_id,
+            RestaurantBranch.is_active.is_(True),
+        )
+    ).scalar_one_or_none()
+
+
+def get_branch_stop_list_ids(branch_id):
+    db_session = get_session()
+    rows = db_session.execute(
+        select(BranchStopListItem.menu_item_id).where(BranchStopListItem.branch_id == branch_id)
+    ).scalars().all()
+    return set(rows)
+
+
 @menu_api.route("/api/menu")
 def get_menu():
     restaurant = get_default_restaurant()
@@ -130,6 +149,47 @@ def get_menu_by_restaurant(restaurant_slug):
         {
             "restaurant": restaurant,
             "menu": [serialize_menu_item(item) for item in menu],
+            "categories": [serialize_category(category) for category in categories],
+        }
+    )
+
+
+@menu_api.route("/api/<restaurant_slug>/<branch_public_id>/menu")
+def get_menu_by_restaurant_branch(restaurant_slug, branch_public_id):
+    restaurant = get_restaurant_by_slug(restaurant_slug)
+    if not restaurant:
+        return jsonify({"error": "Restaurant not found"}), 404
+
+    branch = get_branch_by_public_id(restaurant["id"], branch_public_id)
+    if not branch:
+        return jsonify({"error": "Branch not found"}), 404
+
+    menu, categories = get_restaurant_menu(restaurant["id"])
+    stop_list_ids = get_branch_stop_list_ids(branch.id)
+
+    serialized_menu = []
+    for item in menu:
+        item_data = serialize_menu_item(item)
+        if item.id in stop_list_ids:
+            item_data["is_available"] = False
+        serialized_menu.append(item_data)
+
+    branch_data = {
+        "id": branch.id,
+        "public_id": branch.public_id,
+        "name": branch.name,
+        "address": branch.address,
+        "delivery_fee": branch.delivery_fee,
+        "qr_code_image": branch.qr_code_image,
+        "qr_code_url": f"/static/resource/{branch.qr_code_image}" if branch.qr_code_image else None,
+        "is_active": branch.is_active,
+    }
+
+    return jsonify(
+        {
+            "restaurant": restaurant,
+            "branch": branch_data,
+            "menu": serialized_menu,
             "categories": [serialize_category(category) for category in categories],
         }
     )

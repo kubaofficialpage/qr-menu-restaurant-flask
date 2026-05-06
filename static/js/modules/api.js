@@ -1,7 +1,7 @@
 import { renderCategories, renderMenu } from './render.js';
 import { getById } from './dom.js';
 import { logError } from './logger.js';
-import { getRestaurantSlug } from './page-context.js';
+import { getRestaurantBranchPublicId, getRestaurantSlug } from './page-context.js';
 import { state, setMenuData } from './state.js';
 import { showToast } from './toast.js';
 import { t } from './i18n.js';
@@ -12,8 +12,13 @@ export function fetchMenuData() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), MENU_REQUEST_TIMEOUT_MS);
     const slug = getRestaurantSlug();
-    const menuCacheKey = slug ? `qr_menu_cache:${slug}` : "qr_menu_cache:default";
-    const endpoint = slug ? `/api/${encodeURIComponent(slug)}/menu` : "/api/menu";
+    const branchPublicId = getRestaurantBranchPublicId();
+    const menuCacheKey = slug ? `qr_menu_cache:${slug}:${branchPublicId || "root"}` : "qr_menu_cache:default";
+    const endpoint = slug
+        ? (branchPublicId
+            ? `/api/${encodeURIComponent(slug)}/${encodeURIComponent(branchPublicId)}/menu`
+            : `/api/${encodeURIComponent(slug)}/menu`)
+        : "/api/menu";
 
     return fetch(endpoint, { signal: controller.signal })
         .then(response => {
@@ -24,6 +29,7 @@ export function fetchMenuData() {
         })
         .then(data => {
             state.restaurant = data.restaurant || null;
+            state.branch = data.branch || null;
             setMenuData(data.menu || [], data.categories || []);
             saveMenuCache(menuCacheKey, data);
             return data;
@@ -40,11 +46,13 @@ export function loadMenuData() {
         })
         .catch(error => {
             const slug = getRestaurantSlug();
-            const menuCacheKey = slug ? `qr_menu_cache:${slug}` : "qr_menu_cache:default";
-            logError("menu:load", error, { slug });
+            const branchPublicId = getRestaurantBranchPublicId();
+            const menuCacheKey = slug ? `qr_menu_cache:${slug}:${branchPublicId || "root"}` : "qr_menu_cache:default";
+            logError("menu:load", error, { slug, branchPublicId });
             const cached = loadMenuCache(menuCacheKey);
             if (cached) {
                 state.restaurant = cached.restaurant || null;
+                state.branch = cached.branch || null;
                 setMenuData(cached.menu || [], cached.categories || []);
                 renderCategories();
                 renderMenu(state.menuData, { groupByCategory: true });

@@ -164,6 +164,7 @@ class RestaurantBranch(TimestampMixin, db.Model):
     __tablename__ = "restaurant_branches"
 
     id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.String(64), nullable=False, unique=True, index=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
     name = db.Column(db.String(160), nullable=False)
     address = db.Column(db.String(255), nullable=False)
@@ -174,6 +175,22 @@ class RestaurantBranch(TimestampMixin, db.Model):
     restaurant = db.relationship("Restaurant", backref=db.backref("branches", cascade="all, delete-orphan"))
     operators = db.relationship("Operator", back_populates="branch", cascade="all, delete-orphan")
     orders = db.relationship("Order", back_populates="branch")
+    stop_list_entries = db.relationship("BranchStopListItem", back_populates="branch", cascade="all, delete-orphan")
+
+
+class BranchStopListItem(db.Model):
+    __tablename__ = "branch_stop_list_items"
+    __table_args__ = (
+        db.UniqueConstraint("branch_id", "menu_item_id", name="uq_branch_stop_list_branch_item"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("restaurant_branches.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_item_id = db.Column(db.Integer, db.ForeignKey("menu.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=func.current_timestamp())
+
+    branch = db.relationship("RestaurantBranch", back_populates="stop_list_entries")
+    menu_item = db.relationship("MenuItem")
 
 
 class Operator(TimestampMixin, db.Model):

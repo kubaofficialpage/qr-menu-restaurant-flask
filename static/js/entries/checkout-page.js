@@ -1,19 +1,16 @@
 import { fetchMenuData } from "../modules/api.js";
 import { applyTranslations, bindLangSwitcher, initI18n } from "../modules/i18n.js";
-import { readJsonScript, getRestaurantSlug } from "../modules/page-context.js";
+import { getRestaurantBranchPublicId, getRestaurantSlug, readJsonScript } from "../modules/page-context.js";
 import { state, loadCartFromStorage, saveCartToStorage } from "../modules/state.js";
 
 const checkoutState = {
     currentStep: 1,
-    branches: [],
+    branch: null,
     customer: null,
     verified: false,
-    selectedBranchId: null,
     isSubmitting: false,
     requestId: null,
     pendingAdvance: false,
-    authStep: "phone",
-    orderAccordionOpen: true,
     receiptPreviewUrl: null,
     receiptProgressTimer: null,
 };
@@ -29,29 +26,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
         await fetchMenuData();
     } catch {
-        // Keep checkout usable even if menu fetch fails.
+        // keep checkout page usable
     }
 
     renderCartSummary();
-    renderBranches();
     syncAuthCard();
-    syncOrderAccordion();
+    updateBranchQr();
     updateTotals();
     updateStep();
 });
 
 function hydrateCheckoutState() {
     const pageData = readJsonScript("checkoutPageData") || {};
-    checkoutState.branches = Array.isArray(pageData.branches) ? pageData.branches : [];
+    checkoutState.branch = pageData.branch || null;
     checkoutState.customer = pageData.customer || null;
     checkoutState.verified = Boolean(pageData.customer);
-    checkoutState.selectedBranchId = checkoutState.branches[0]?.id || null;
-    checkoutState.requestId = window.crypto?.randomUUID?.() || `checkout-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    checkoutState.requestId = window.crypto?.randomUUID?.() || `checkout-${Date.now()}`;
 
     const otpStub = document.getElementById("checkoutOtpStubCode");
     if (otpStub) otpStub.textContent = pageData.otpStubCode || "000000";
 
-    if (checkoutState.customer) {
+    if (checkoutState.customer?.address) {
         document.getElementById("checkoutAddress").value = checkoutState.customer.address || "";
     }
 }
@@ -60,48 +55,32 @@ function bindCheckoutActions() {
     document.getElementById("checkoutNextBtn")?.addEventListener("click", onNextStep);
     document.getElementById("checkoutBackBtn")?.addEventListener("click", onBackStep);
     document.getElementById("checkoutForm")?.addEventListener("submit", submitOrder);
-
     document.getElementById("checkoutOpenAuthBtn")?.addEventListener("click", openAuthModal);
     document.getElementById("checkoutAuthCloseBtn")?.addEventListener("click", closeAuthModal);
     document.getElementById("checkoutAuthModal")?.addEventListener("click", event => {
-        if (event.target === event.currentTarget) {
-            closeAuthModal();
-        }
+        if (event.target === event.currentTarget) closeAuthModal();
     });
-
     document.getElementById("checkoutAuthNextBtn")?.addEventListener("click", requestOtp);
     document.getElementById("checkoutAuthVerifyBtn")?.addEventListener("click", verifyOtp);
-    document.getElementById("checkoutOrderAccordionBtn")?.addEventListener("click", toggleOrderAccordion);
     document.getElementById("checkoutReceipt")?.addEventListener("change", updateReceiptPreview);
 
     document.querySelectorAll("[data-otp-digit]").forEach((input, index, inputs) => {
         input.addEventListener("input", () => {
             input.value = input.value.replace(/\D/g, "").slice(0, 1);
-            if (input.value && index < inputs.length - 1) {
-                inputs[index + 1].focus();
-            }
+            if (input.value && index < inputs.length - 1) inputs[index + 1].focus();
         });
-
         input.addEventListener("keydown", event => {
             if (event.key === "Backspace" && !input.value && index > 0) {
                 inputs[index - 1].focus();
             }
         });
-
         input.addEventListener("paste", event => {
             event.preventDefault();
-            const digits = String(event.clipboardData?.getData("text") || "")
-                .replace(/\D/g, "")
-                .slice(0, inputs.length);
-
+            const digits = String(event.clipboardData?.getData("text") || "").replace(/\D/g, "").slice(0, inputs.length);
             digits.split("").forEach((digit, digitIndex) => {
-                if (inputs[digitIndex]) {
-                    inputs[digitIndex].value = digit;
-                }
+                if (inputs[digitIndex]) inputs[digitIndex].value = digit;
             });
-
-            const targetIndex = Math.min(digits.length, inputs.length - 1);
-            inputs[targetIndex]?.focus();
+            inputs[Math.min(digits.length, inputs.length - 1)]?.focus();
         });
     });
 }
@@ -116,95 +95,37 @@ function getCartItems() {
     return items;
 }
 
-function getSelectedBranch() {
-    return checkoutState.branches.find(item => Number(item.id) === Number(checkoutState.selectedBranchId)) || null;
-}
-
 function getSubtotal() {
     return getCartItems().reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
 }
 
 function getDeliveryFee() {
-    return Number(getSelectedBranch()?.delivery_fee || 0);
+    return Number(checkoutState.branch?.delivery_fee || 0);
 }
 
 function updateTotals() {
     const subtotal = getSubtotal();
     const delivery = getDeliveryFee();
     const total = subtotal + delivery;
-
     const subtotalEl = document.getElementById("checkoutSubtotalAmount");
     const deliveryEl = document.getElementById("checkoutDeliveryAmount");
-    const totalEl = document.getElementById("checkoutTotalAmount");
     const grandEl = document.getElementById("checkoutGrandTotalAmount");
-
     if (subtotalEl) subtotalEl.textContent = `${subtotal} c`;
     if (deliveryEl) deliveryEl.textContent = `${delivery} c`;
-    if (totalEl) totalEl.textContent = `${total}`;
     if (grandEl) grandEl.textContent = `${total} c`;
 }
 
 function renderCartSummary() {
     const items = getCartItems();
-    const container = document.getElementById("checkoutCartItems");
-    const emptyState = document.getElementById("checkoutCartEmpty");
-    const count = document.getElementById("checkoutCartCount");
-    if (!container || !emptyState || !count) return;
-
-    count.textContent = `${items.length} позиций`;
-
+    const nextBtn = document.getElementById("checkoutNextBtn");
+    const submitBtn = document.getElementById("checkoutSubmitBtn");
     if (!items.length) {
-        container.innerHTML = "";
-        emptyState.classList.remove("hidden");
-        document.getElementById("checkoutNextBtn")?.setAttribute("disabled", "disabled");
-        document.getElementById("checkoutSubmitBtn")?.setAttribute("disabled", "disabled");
-        updateTotals();
-        return;
+        nextBtn?.setAttribute("disabled", "disabled");
+        submitBtn?.setAttribute("disabled", "disabled");
+    } else {
+        nextBtn?.removeAttribute("disabled");
+        submitBtn?.removeAttribute("disabled");
     }
-
-    emptyState.classList.add("hidden");
-    document.getElementById("checkoutNextBtn")?.removeAttribute("disabled");
-    document.getElementById("checkoutSubmitBtn")?.removeAttribute("disabled");
-    container.innerHTML = items.map(item => `
-        <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-            <div class="min-w-0">
-                <div class="truncate font-semibold text-slate-900">${escapeHtml(item.name)}</div>
-                <div class="text-sm text-slate-500">${escapeHtml(item.amount || "")}</div>
-            </div>
-            <div class="text-right">
-                <div class="font-semibold text-slate-900">${Number(item.qty) * Number(item.price)} c</div>
-                <div class="text-sm text-slate-500">${Number(item.qty)} x ${Number(item.price)} c</div>
-            </div>
-        </div>
-    `).join("");
-
-    updateTotals();
-}
-
-function renderBranches() {
-    const container = document.getElementById("checkoutBranches");
-    if (!container) return;
-
-    container.innerHTML = checkoutState.branches.map(branch => `
-        <label class="checkout-branch-card">
-            <input type="radio" name="branch_id" value="${branch.id}" ${Number(branch.id) === Number(checkoutState.selectedBranchId) ? "checked" : ""}>
-            <span class="checkout-branch-card__body">
-                <strong class="block text-slate-900">${escapeHtml(branch.name)}</strong>
-                <span class="mt-1 block text-sm text-slate-500">${escapeHtml(branch.address || "")}</span>
-                <span class="mt-3 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Доставка ${Number(branch.delivery_fee || 0)} c</span>
-            </span>
-        </label>
-    `).join("");
-
-    container.querySelectorAll('input[name="branch_id"]').forEach(input => {
-        input.addEventListener("change", () => {
-            checkoutState.selectedBranchId = Number(input.value);
-            updateBranchQr();
-            updateTotals();
-        });
-    });
-
-    updateBranchQr();
     updateTotals();
 }
 
@@ -227,13 +148,12 @@ function syncAuthCard() {
 }
 
 function updateBranchQr() {
-    const branch = getSelectedBranch();
     const qrImage = document.getElementById("checkoutBranchQrImage");
     const qrEmpty = document.getElementById("checkoutBranchQrEmpty");
     if (!qrImage || !qrEmpty) return;
 
-    if (branch?.qr_code_url) {
-        qrImage.src = branch.qr_code_url;
+    if (checkoutState.branch?.qr_code_url) {
+        qrImage.src = checkoutState.branch.qr_code_url;
         qrImage.classList.remove("hidden");
         qrEmpty.classList.add("hidden");
         return;
@@ -244,13 +164,196 @@ function updateBranchQr() {
     qrEmpty.classList.remove("hidden");
 }
 
+function updateStep() {
+    document.querySelectorAll("[data-checkout-step]").forEach(section => {
+        section.classList.toggle("hidden", Number(section.dataset.checkoutStep) !== checkoutState.currentStep);
+    });
+
+    document.querySelectorAll("[data-checkout-step-indicator]").forEach(item => {
+        item.classList.toggle("is-active", Number(item.dataset.checkoutStepIndicator) <= checkoutState.currentStep);
+    });
+
+    document.getElementById("checkoutBackBtn")?.classList.toggle("hidden", checkoutState.currentStep === 1);
+    document.getElementById("checkoutNextBtn")?.classList.toggle("hidden", checkoutState.currentStep === 2);
+    document.getElementById("checkoutSubmitBtn")?.classList.toggle("hidden", checkoutState.currentStep !== 2);
+
+    const actionsRow = document.getElementById("checkoutActionsRow");
+    if (actionsRow) {
+        actionsRow.classList.toggle("checkout-actions--step1", checkoutState.currentStep === 1);
+        actionsRow.classList.toggle("checkout-actions--split", checkoutState.currentStep !== 1);
+    }
+}
+
+function onNextStep() {
+    if (checkoutState.currentStep === 1 && !checkoutState.verified) {
+        checkoutState.pendingAdvance = true;
+        openAuthModal();
+        return;
+    }
+    if (!validateStep(1)) return;
+    checkoutState.currentStep = 2;
+    updateStep();
+}
+
+function onBackStep() {
+    checkoutState.currentStep = 1;
+    updateStep();
+}
+
+function validateStep(step) {
+    resetMessages();
+    if (step === 1) {
+        const address = document.getElementById("checkoutAddress")?.value.trim() || "";
+        if (!address) return showError("Укажите адрес доставки.");
+        if (!checkoutState.verified) return showError("Сначала авторизуйтесь по номеру телефона.");
+    }
+    if (step === 2) {
+        const paymentType = document.querySelector('input[name="payment_type"]:checked')?.value || "online";
+        const receipt = document.getElementById("checkoutReceipt")?.files?.[0];
+        if (paymentType === "online" && !receipt) return showError("Загрузите чек оплаты.");
+    }
+    return true;
+}
+
+function openAuthModal() {
+    document.getElementById("checkoutAuthModal")?.classList.remove("hidden");
+    resetAuthModal();
+    document.getElementById("checkoutAuthPhone")?.focus();
+}
+
+function closeAuthModal() {
+    document.getElementById("checkoutAuthModal")?.classList.add("hidden");
+    checkoutState.pendingAdvance = false;
+}
+
+function resetAuthModal() {
+    document.getElementById("checkoutAuthStepPhone")?.classList.remove("hidden");
+    document.getElementById("checkoutAuthStepCode")?.classList.add("hidden");
+    document.getElementById("checkoutAuthError")?.classList.add("hidden");
+    document.querySelectorAll("[data-otp-digit]").forEach(input => { input.value = ""; });
+    const phoneInput = document.getElementById("checkoutAuthPhone");
+    if (phoneInput && checkoutState.customer?.phone_whatsapp) {
+        phoneInput.value = checkoutState.customer.phone_whatsapp;
+    }
+}
+
+async function requestOtp() {
+    hideAuthError();
+    const phone = document.getElementById("checkoutAuthPhone")?.value.trim() || "";
+    if (!phone) return showAuthError("Введите номер телефона.");
+
+    const response = await fetch("/api/customer/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) return showAuthError(data.message || "Не удалось отправить OTP.");
+
+    document.getElementById("checkoutAuthStepPhone")?.classList.add("hidden");
+    document.getElementById("checkoutAuthStepCode")?.classList.remove("hidden");
+    document.querySelector("[data-otp-digit]")?.focus();
+}
+
+async function verifyOtp() {
+    hideAuthError();
+    const phone = document.getElementById("checkoutAuthPhone")?.value.trim() || "";
+    const code = getOtpCode();
+    if (!phone) return showAuthError("Введите номер телефона.");
+    if (code.length !== 6) return showAuthError("Введите код из 6 цифр.");
+
+    const response = await fetch("/api/customer/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            phone,
+            code,
+            address: document.getElementById("checkoutAddress")?.value.trim() || "",
+        }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) return showAuthError(data.message || "Не удалось подтвердить номер.");
+
+    checkoutState.customer = data.customer || null;
+    checkoutState.verified = true;
+    if (checkoutState.customer?.address && !document.getElementById("checkoutAddress")?.value.trim()) {
+        document.getElementById("checkoutAddress").value = checkoutState.customer.address;
+    }
+    syncAuthCard();
+    document.getElementById("checkoutAuthModal")?.classList.add("hidden");
+    if (checkoutState.pendingAdvance && validateStep(1)) {
+        checkoutState.pendingAdvance = false;
+        checkoutState.currentStep = 2;
+        updateStep();
+    }
+}
+
+function getOtpCode() {
+    return Array.from(document.querySelectorAll("[data-otp-digit]")).map(input => input.value.trim()).join("");
+}
+
+async function submitOrder(event) {
+    event.preventDefault();
+    if (checkoutState.isSubmitting) return;
+    if (!validateStep(2)) return;
+
+    const slug = getRestaurantSlug();
+    const branchPublicId = getRestaurantBranchPublicId();
+    const items = getCartItems();
+    if (!slug || !branchPublicId || !items.length) {
+        showError("Корзина пуста.");
+        return;
+    }
+
+    checkoutState.isSubmitting = true;
+    resetMessages();
+    toggleSubmitting(true);
+    setReceiptProgress(100);
+
+    const formData = new FormData();
+    formData.set("full_name", checkoutState.customer?.full_name || "");
+    formData.set("phone", checkoutState.customer?.phone_whatsapp || "");
+    formData.set("address", document.getElementById("checkoutAddress")?.value.trim() || "");
+    formData.set("comment", document.getElementById("checkoutComment")?.value.trim() || "");
+    formData.set("otp_code", "");
+    formData.set("payment_type", document.querySelector('input[name="payment_type"]:checked')?.value || "online");
+    formData.set("branch_id", String(checkoutState.branch?.id || ""));
+    formData.set("client_request_id", checkoutState.requestId);
+    formData.set("cart", JSON.stringify(items.map(item => ({ id: item.id, qty: item.qty }))));
+
+    const receiptFile = await getPreparedReceiptFile(document.getElementById("checkoutReceipt")?.files?.[0]);
+    if (receiptFile) formData.set("receipt", receiptFile);
+
+    try {
+        const response = await fetch(`/api/${encodeURIComponent(slug)}/${encodeURIComponent(branchPublicId)}/orders`, {
+            method: "POST",
+            body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+            throw new Error(data.message || "Не удалось оформить заказ.");
+        }
+        clearCart();
+        showLoading();
+        window.location.assign(data.order?.detail_url || `/${slug}/${branchPublicId}/orders`);
+    } catch (error) {
+        checkoutState.isSubmitting = false;
+        toggleSubmitting(false);
+        showError(error.message || "Не удалось оформить заказ.");
+    }
+}
+
+function clearCart() {
+    Object.keys(state.cartQty).forEach(id => delete state.cartQty[id]);
+    saveCartToStorage();
+}
+
 function updateReceiptPreview() {
     const input = document.getElementById("checkoutReceipt");
     const preview = document.getElementById("checkoutReceiptPreview");
-    const empty = document.getElementById("checkoutReceiptEmpty");
     const meta = document.getElementById("checkoutReceiptMeta");
     const file = input?.files?.[0];
-    if (!preview || !empty || !meta) return;
+    if (!preview || !meta) return;
 
     if (checkoutState.receiptPreviewUrl) {
         URL.revokeObjectURL(checkoutState.receiptPreviewUrl);
@@ -261,7 +364,6 @@ function updateReceiptPreview() {
         preview.src = "";
         preview.classList.add("hidden");
         meta.textContent = "PNG, JPG или WEBP";
-        meta.classList.add("hidden");
         setReceiptProgress(0);
         return;
     }
@@ -270,15 +372,11 @@ function updateReceiptPreview() {
     preview.src = checkoutState.receiptPreviewUrl;
     preview.classList.remove("hidden");
     meta.textContent = `Файл: ${file.name} · ${formatFileSize(file.size)}`;
-    meta.classList.remove("hidden");
     animateReceiptProgress();
 }
 
 async function getPreparedReceiptFile(file) {
-    if (!file || !file.type.startsWith("image/")) {
-        return file;
-    }
-
+    if (!file || !file.type.startsWith("image/")) return file;
     try {
         return await compressImageToWebp(file);
     } catch {
@@ -303,23 +401,14 @@ function compressImageToWebp(file, options = {}) {
                 const scale = Math.min(1, maxWidth / width, maxHeight / height);
                 width = Math.max(1, Math.round(width * scale));
                 height = Math.max(1, Math.round(height * scale));
-
                 const canvas = document.createElement("canvas");
                 canvas.width = width;
                 canvas.height = height;
                 const context = canvas.getContext("2d");
-                if (!context) {
-                    reject(new Error("canvas-context-failed"));
-                    return;
-                }
-
+                if (!context) return reject(new Error("canvas-context-failed"));
                 context.drawImage(image, 0, 0, width, height);
                 canvas.toBlob(blob => {
-                    if (!blob) {
-                        reject(new Error("blob-failed"));
-                        return;
-                    }
-
+                    if (!blob) return reject(new Error("blob-failed"));
                     const baseName = file.name.replace(/\.[^.]+$/, "") || "receipt";
                     resolve(new File([blob], `${baseName}.webp`, { type: "image/webp" }));
                 }, "image/webp", quality);
@@ -330,269 +419,22 @@ function compressImageToWebp(file, options = {}) {
     });
 }
 
-function syncOrderAccordion() {
-    const body = document.getElementById("checkoutOrderAccordionBody");
-    const icon = document.getElementById("checkoutOrderAccordionIcon");
-    if (!body || !icon) return;
-
-    body.classList.toggle("hidden", !checkoutState.orderAccordionOpen);
-    icon.classList.toggle("rotate-180", checkoutState.orderAccordionOpen);
-}
-
-function toggleOrderAccordion() {
-    checkoutState.orderAccordionOpen = !checkoutState.orderAccordionOpen;
-    syncOrderAccordion();
-}
-
-function updateStep() {
-    document.querySelectorAll("[data-checkout-step]").forEach(section => {
-        section.classList.toggle("hidden", Number(section.dataset.checkoutStep) !== checkoutState.currentStep);
-    });
-
-    document.querySelectorAll("[data-checkout-step-indicator]").forEach(item => {
-        item.classList.toggle("is-active", Number(item.dataset.checkoutStepIndicator) <= checkoutState.currentStep);
-    });
-
-    document.getElementById("checkoutBackBtn")?.classList.toggle("hidden", checkoutState.currentStep === 1);
-    document.getElementById("checkoutNextBtn")?.classList.toggle("hidden", checkoutState.currentStep === 3);
-    document.getElementById("checkoutSubmitBtn")?.classList.toggle("hidden", checkoutState.currentStep !== 3);
-
-    const actionsRow = document.getElementById("checkoutActionsRow");
-    if (actionsRow) {
-        actionsRow.classList.toggle("checkout-actions--step1", checkoutState.currentStep === 1);
-        actionsRow.classList.toggle("checkout-actions--split", checkoutState.currentStep !== 1);
-    }
-}
-
-function onNextStep() {
-    if (checkoutState.currentStep === 1 && !checkoutState.verified) {
-        checkoutState.pendingAdvance = true;
-        openAuthModal();
-        return;
-    }
-
-    if (!validateStep(checkoutState.currentStep)) return;
-    checkoutState.currentStep = Math.min(3, checkoutState.currentStep + 1);
-    updateStep();
-}
-
-function onBackStep() {
-    checkoutState.currentStep = Math.max(1, checkoutState.currentStep - 1);
-    updateStep();
-}
-
-function validateStep(step) {
-    resetMessages();
-
-    if (step === 1) {
-        const address = document.getElementById("checkoutAddress")?.value.trim() || "";
-        if (!address) return showError("Укажите адрес доставки.");
-        if (!checkoutState.verified) return showError("Сначала авторизуйтесь по номеру телефона.");
-    }
-
-    if (step === 2 && !checkoutState.selectedBranchId) {
-        return showError("Выберите филиал.");
-    }
-
-    if (step === 3) {
-        const paymentType = document.querySelector('input[name="payment_type"]:checked')?.value || "online";
-        const receipt = document.getElementById("checkoutReceipt")?.files?.[0];
-        if (paymentType === "online" && !receipt) {
-            return showError("Загрузите чек оплаты.");
-        }
-    }
-
-    return true;
-}
-
-function openAuthModal() {
-    document.getElementById("checkoutAuthModal")?.classList.remove("hidden");
-    resetAuthModal();
-    document.getElementById("checkoutAuthPhone")?.focus();
-}
-
-function closeAuthModal() {
-    document.getElementById("checkoutAuthModal")?.classList.add("hidden");
-    checkoutState.pendingAdvance = false;
-}
-
-function resetAuthModal() {
-    checkoutState.authStep = "phone";
-    document.getElementById("checkoutAuthStepPhone")?.classList.remove("hidden");
-    document.getElementById("checkoutAuthStepCode")?.classList.add("hidden");
-    document.getElementById("checkoutAuthError")?.classList.add("hidden");
-    document.querySelectorAll("[data-otp-digit]").forEach(input => {
-        input.value = "";
-    });
-
-    const phoneInput = document.getElementById("checkoutAuthPhone");
-    if (phoneInput && checkoutState.customer?.phone_whatsapp) {
-        phoneInput.value = checkoutState.customer.phone_whatsapp;
-    }
-}
-
-async function requestOtp() {
-    hideAuthError();
-    const phone = document.getElementById("checkoutAuthPhone")?.value.trim() || "";
-    if (!phone) {
-        showAuthError("Введите номер телефона.");
-        return;
-    }
-
-    const response = await fetch("/api/customer/request-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-    });
-    const data = await response.json();
-    if (!response.ok || !data.ok) {
-        showAuthError(data.message || "Не удалось отправить OTP.");
-        return;
-    }
-
-    checkoutState.authStep = "code";
-    document.getElementById("checkoutAuthStepPhone")?.classList.add("hidden");
-    document.getElementById("checkoutAuthStepCode")?.classList.remove("hidden");
-    document.querySelector("[data-otp-digit]")?.focus();
-}
-
-async function verifyOtp() {
-    hideAuthError();
-    const phone = document.getElementById("checkoutAuthPhone")?.value.trim() || "";
-    const code = getOtpCode();
-
-    if (!phone) {
-        showAuthError("Введите номер телефона.");
-        return;
-    }
-    if (code.length !== 6) {
-        showAuthError("Введите код из 6 цифр.");
-        return;
-    }
-
-    const response = await fetch("/api/customer/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            phone,
-            code,
-            address: document.getElementById("checkoutAddress")?.value.trim() || "",
-        }),
-    });
-    const data = await response.json();
-    if (!response.ok || !data.ok) {
-        showAuthError(data.message || "Не удалось подтвердить номер.");
-        return;
-    }
-
-    checkoutState.customer = data.customer || null;
-    checkoutState.verified = true;
-    if (checkoutState.customer?.address && !document.getElementById("checkoutAddress")?.value.trim()) {
-        document.getElementById("checkoutAddress").value = checkoutState.customer.address;
-    }
-    syncAuthCard();
-    document.getElementById("checkoutAuthModal")?.classList.add("hidden");
-
-    if (checkoutState.pendingAdvance && validateStep(1)) {
-        checkoutState.pendingAdvance = false;
-        checkoutState.currentStep = 2;
-        updateStep();
-    }
-}
-
-function getOtpCode() {
-    return Array.from(document.querySelectorAll("[data-otp-digit]"))
-        .map(input => input.value.trim())
-        .join("");
-}
-
-async function submitOrder(event) {
-    event.preventDefault();
-    if (checkoutState.isSubmitting) return;
-    if (!validateStep(3)) return;
-
-    const slug = getRestaurantSlug();
-    const items = getCartItems();
-    if (!slug || !items.length) {
-        showError("Корзина пуста.");
-        return;
-    }
-
-    checkoutState.isSubmitting = true;
-    resetMessages();
-    toggleSubmitting(true);
-    setReceiptProgress(100);
-
-    const formData = new FormData();
-    const addressInput = document.getElementById("checkoutAddress");
-    const commentInput = document.getElementById("checkoutComment");
-    const receiptInput = document.getElementById("checkoutReceipt");
-    const paymentType = document.querySelector('input[name="payment_type"]:checked')?.value || "online";
-
-    formData.set("full_name", checkoutState.customer?.full_name || "");
-    formData.set("phone", checkoutState.customer?.phone_whatsapp || "");
-    formData.set("address", addressInput?.value.trim() || "");
-    formData.set("comment", commentInput?.value.trim() || "");
-    formData.set("otp_code", "");
-    formData.set("payment_type", paymentType);
-    formData.set("branch_id", String(checkoutState.selectedBranchId || ""));
-    formData.set("client_request_id", checkoutState.requestId);
-    formData.set("cart", JSON.stringify(items.map(item => ({ id: item.id, qty: item.qty }))));
-
-    const receiptFile = await getPreparedReceiptFile(receiptInput?.files?.[0]);
-    if (receiptFile) {
-        formData.set("receipt", receiptFile);
-    }
-
-    try {
-        const response = await fetch(`/api/${encodeURIComponent(slug)}/orders`, {
-            method: "POST",
-            body: formData,
-        });
-        const data = await response.json();
-        if (!response.ok || !data.ok) {
-            throw new Error(data.message || "Не удалось оформить заказ.");
-        }
-
-        clearCart();
-        showLoading();
-        window.location.assign(data.order?.detail_url || `/${slug}/orders`);
-    } catch (error) {
-        checkoutState.isSubmitting = false;
-        toggleSubmitting(false);
-        showError(error.message || "Не удалось оформить заказ.");
-    }
-}
-
-function clearCart() {
-    Object.keys(state.cartQty).forEach(id => delete state.cartQty[id]);
-    saveCartToStorage();
-}
-
 function toggleSubmitting(isSubmitting) {
     const submit = document.getElementById("checkoutSubmitBtn");
     const back = document.getElementById("checkoutBackBtn");
     const next = document.getElementById("checkoutNextBtn");
-
     [submit, back, next].forEach(button => {
-        if (!button) return;
-        button.disabled = isSubmitting;
+        if (button) button.disabled = isSubmitting;
     });
-
     if (submit) {
         const label = submit.querySelector("span");
-        if (label) {
-            label.textContent = isSubmitting ? "Оформляем..." : "Оформить заказ";
-        } else {
-            submit.textContent = isSubmitting ? "Оформляем..." : "Оформить заказ";
-        }
+        if (label) label.textContent = isSubmitting ? "Оформляем..." : "Оформить заказ";
     }
 }
 
 function resetMessages() {
-    ["checkoutError", "checkoutLoading"].forEach(id => {
-        document.getElementById(id)?.classList.add("hidden");
-    });
+    document.getElementById("checkoutError")?.classList.add("hidden");
+    document.getElementById("checkoutLoading")?.classList.add("hidden");
 }
 
 function showError(message) {
@@ -620,12 +462,8 @@ function hideAuthError() {
 
 function formatFileSize(size) {
     const bytes = Number(size || 0);
-    if (bytes >= 1024 * 1024) {
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    }
-    if (bytes >= 1024) {
-        return `${Math.round(bytes / 1024)} KB`;
-    }
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
     return `${bytes} B`;
 }
 
@@ -636,10 +474,7 @@ function setReceiptProgress(value) {
 }
 
 function animateReceiptProgress() {
-    if (checkoutState.receiptProgressTimer) {
-        window.clearInterval(checkoutState.receiptProgressTimer);
-    }
-
+    if (checkoutState.receiptProgressTimer) window.clearInterval(checkoutState.receiptProgressTimer);
     let current = 0;
     setReceiptProgress(current);
     checkoutState.receiptProgressTimer = window.setInterval(() => {
@@ -650,13 +485,4 @@ function animateReceiptProgress() {
             checkoutState.receiptProgressTimer = null;
         }
     }, 90);
-}
-
-function escapeHtml(value) {
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
 }

@@ -1,15 +1,16 @@
-import { getRestaurantSlug } from "../modules/page-context.js";
+import { getRestaurantBranchPublicId, getRestaurantSlug } from "../modules/page-context.js";
 
 document.addEventListener("DOMContentLoaded", () => {
     const slug = getRestaurantSlug();
-    if (!slug) return;
+    const branchPublicId = getRestaurantBranchPublicId();
+    if (!slug || !branchPublicId) return;
 
-    loadOrders(slug);
-    initSocket(slug);
+    loadOrders(slug, branchPublicId);
+    initSocket(slug, branchPublicId);
 });
 
-function loadOrders(slug) {
-    fetch(`/api/${encodeURIComponent(slug)}/orders/my`)
+function loadOrders(slug, branchPublicId) {
+    fetch(`/api/${encodeURIComponent(slug)}/${encodeURIComponent(branchPublicId)}/orders/my`)
         .then(response => response.json())
         .then(data => renderOrders(data.orders || []))
         .catch(() => renderOrders([]));
@@ -57,7 +58,7 @@ function renderOrders(orders) {
     `).join("");
 }
 
-function initSocket(slug) {
+function initSocket(slug, branchPublicId) {
     const configElement = document.getElementById("clientOrdersSocketConfig");
     if (!configElement || typeof io === "undefined") return;
 
@@ -74,7 +75,7 @@ function initSocket(slug) {
     });
 
     socket.on("customer_order_updated", () => {
-        loadOrders(slug);
+        loadOrders(slug, branchPublicId);
     });
 }
 

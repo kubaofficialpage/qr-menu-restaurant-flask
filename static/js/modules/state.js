@@ -1,11 +1,12 @@
 // state.js - Глобальное состояние приложения
-import { getRestaurantSlug } from "./page-context.js";
+import { getRestaurantBranchPublicId, getRestaurantSlug } from "./page-context.js";
 
 const CART_STORAGE_KEY = "qr_menu_cart";
 const CART_TTL_MS = 1000 * 60 * 60; // 1 час
 
 export const state = {
     restaurant: null,
+    branch: null,
     menuData: [],           // список всех блюд
     menuById: new Map(),
     menuByCategory: new Map(),
@@ -46,7 +47,8 @@ export function setMenuData(menuItems = [], categories = []) {
 
 function getCartStorageKey() {
     const slug = getRestaurantSlug();
-    return slug ? `${CART_STORAGE_KEY}:${slug}` : CART_STORAGE_KEY;
+    const branchPublicId = getRestaurantBranchPublicId();
+    return slug ? `${CART_STORAGE_KEY}:${slug}:${branchPublicId || "root"}` : CART_STORAGE_KEY;
 }
 
 function isExpired(timestamp) {

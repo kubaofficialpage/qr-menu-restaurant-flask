@@ -1,199 +1,152 @@
 {% extends "client/base.html" %}
 
 {% block title %}Оформление заказа{% endblock %}
-{% block body_class %}bg-[#f8faf8] min-h-screen text-slate-900{% endblock %}
+{% block body_class %}bg-[#f7f7f4] min-h-screen text-slate-900{% endblock %}
 
 {% block body %}
 <div class="checkout-page min-h-screen pb-12">
     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-        <div class="mx-auto flex max-w-5xl items-center justify-between gap-3">
-            <a href="/{{ restaurant.slug }}/cart" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white" aria-label="Назад">
+        <div class="mx-auto flex max-w-3xl items-center justify-between gap-3">
+            <a href="/{{ restaurant.slug }}/{{ branch.public_id }}/cart" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white" aria-label="Назад">
                 <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
             </a>
             <div class="text-center">
-                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Delivery</div>
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Checkout</div>
                 <h1 class="text-lg font-bold text-slate-900">Оформление заказа</h1>
             </div>
             <div class="h-10 w-10"></div>
         </div>
     </header>
 
-    <main class="mx-auto max-w-5xl px-4 py-4">
-        <section class="rounded-[28px] bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-            <div class="checkout-stepper">
-                <div class="checkout-stepper__item is-active" data-checkout-step-indicator="1">
-                    <span class="checkout-stepper__number">1</span>
-                    <span class="checkout-stepper__label">Данные</span>
-                </div>
-                <div class="checkout-stepper__line"></div>
-                <div class="checkout-stepper__item" data-checkout-step-indicator="2">
-                    <span class="checkout-stepper__number">2</span>
-                    <span class="checkout-stepper__label">Филиал</span>
-                </div>
-                <div class="checkout-stepper__line"></div>
-                <div class="checkout-stepper__item" data-checkout-step-indicator="3">
-                    <span class="checkout-stepper__number">3</span>
-                    <span class="checkout-stepper__label">Оплата</span>
-                </div>
+    <main class="mx-auto max-w-3xl px-4 py-5">
+        <div class="checkout-stepper mb-5">
+            <div class="checkout-stepper__item is-active" data-checkout-step-indicator="1">
+                <span class="checkout-stepper__number">1</span>
+                <span class="checkout-stepper__label">Данные</span>
             </div>
-        </section>
-
-        <div class="mt-4">
-            <section class="space-y-4">
-                <form id="checkoutForm" class="space-y-4" enctype="multipart/form-data">
-                    <div data-checkout-step="1" class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-                        <div class="mb-4">
-                            <h2 class="text-lg font-bold text-slate-900">Шаг 1. Детали доставки</h2>
-                            <p class="mt-1 text-sm text-slate-500">Укажите адрес, комментарий и способ оплаты.</p>
-                        </div>
-
-                        <div id="checkoutAuthCard" class="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <div id="checkoutAuthTitle" class="text-sm font-semibold text-slate-900">Нужна авторизация</div>
-                                    <div id="checkoutAuthText" class="mt-1 text-xs text-slate-500">Подтвердите номер телефона перед оформлением заказа.</div>
-                                </div>
-                                <button type="button" id="checkoutOpenAuthBtn" class="rounded-full bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm">
-                                    Войти
-                                </button>
-                            </div>
-                        </div>
-
-                        <label class="mt-4 block">
-                            <span class="mb-1 block text-sm font-medium text-slate-700">Адрес доставки</span>
-                            <input id="checkoutAddress" name="address" type="text" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400">
-                        </label>
-
-                        <label class="mt-4 block">
-                            <span class="mb-1 block text-sm font-medium text-slate-700">Комментарий к ресторану</span>
-                            <textarea id="checkoutComment" name="comment" rows="3" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400"></textarea>
-                        </label>
-
-                        <div class="mt-4">
-                            <div class="mb-2 text-sm font-medium text-slate-700">Тип оплаты</div>
-                            <div class="flex flex-wrap gap-2">
-                                <label class="payment-chip">
-                                    <input type="radio" name="payment_type" value="online" checked>
-                                    <span class="payment-chip__body">
-                                        <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
-                                        <strong>Онлайн</strong>
-                                        <small>QR</small>
-                                    </span>
-                                </label>
-                                <label class="payment-chip payment-chip--soon">
-                                    <input type="radio" name="payment_type" value="cash">
-                                    <span class="payment-chip__body">
-                                        <i class="fa-solid fa-money-bills" aria-hidden="true"></i>
-                                        <strong>Наличные</strong>
-                                        <small>Soon</small>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div data-checkout-step="2" class="hidden rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-                        <div class="mb-4">
-                            <h2 class="text-lg font-bold text-slate-900">Шаг 2. Выбор филиала</h2>
-                            <p class="mt-1 text-sm text-slate-500">Выберите филиал, который ближе к вам.</p>
-                        </div>
-                        <div id="checkoutBranches" class="space-y-3"></div>
-                    </div>
-
-                    <div data-checkout-step="3" class="hidden space-y-4">
-                        <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-                            <div class="mb-4">
-                                <h2 class="text-lg font-bold text-slate-900">Шаг 3. Оплата</h2>
-                                <p class="mt-1 text-sm text-slate-500">Оплатите заказ и загрузите чек.</p>
-                            </div>
-
-                            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-                                <div class="space-y-4">
-                                    <div id="checkoutBranchQrCard" class="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-center">
-                                        <div class="text-sm text-slate-500">QR код выбранного филиала</div>
-                                        <div id="checkoutBranchQrEmpty" class="mt-4 text-sm text-slate-400">Для этого филиала QR пока не загружен.</div>
-                                        <img id="checkoutBranchQrImage" src="" alt="QR code" class="mx-auto mt-4 hidden max-h-56 rounded-2xl border border-slate-200 bg-white p-3">
-                                    </div>
-
-                                    <div class="rounded-3xl border border-slate-200 bg-white p-4">
-                                        <div class="mb-3 flex items-center justify-between gap-3">
-                                            <div>
-                                                <h3 class="text-sm font-semibold text-slate-900">Загрузка чека</h3>
-                                                <p class="mt-1 text-xs text-slate-500">Компактная загрузка с автосжатием в WEBP.</p>
-                                            </div>
-                                            <i class="fa-solid fa-cloud-arrow-up text-slate-300" aria-hidden="true"></i>
-                                        </div>
-
-                                        <label for="checkoutReceipt" class="receipt-upload-card receipt-upload-card--inline">
-                                            <input id="checkoutReceipt" name="receipt" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
-                                            <div class="receipt-upload-card__inline">
-                                                <div class="receipt-upload-card__icon receipt-upload-card__icon--compact">
-                                                    <i class="fa-solid fa-image" aria-hidden="true"></i>
-                                                </div>
-                                                <div class="min-w-0 flex-1">
-                                                    <div class="font-semibold text-slate-900">Выберите чек</div>
-                                                    <div id="checkoutReceiptMeta" class="mt-1 text-xs text-slate-500">PNG, JPG или WEBP</div>
-                                                </div>
-                                                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Upload</span>
-                                            </div>
-                                            <div class="mt-3">
-                                                <div class="checkout-upload-progress">
-                                                    <div id="checkoutReceiptProgressBar" class="checkout-upload-progress__bar"></div>
-                                                </div>
-                                            </div>
-                                            <img id="checkoutReceiptPreview" src="" alt="Чек" class="mt-3 hidden h-32 w-full rounded-[20px] object-cover">
-                                        </label>
-                                        <div id="checkoutReceiptEmpty" class="hidden"></div>
-                                    </div>
-                                </div>
-
-                                <div class="rounded-3xl border border-slate-200 bg-white p-4">
-                                    <div class="text-sm font-semibold text-slate-900">Итог по заказу</div>
-                                    <div class="mt-4 space-y-3">
-                                        <div class="flex items-center justify-between text-sm text-slate-600">
-                                            <span>Сумма блюд</span>
-                                            <strong id="checkoutSubtotalAmount" class="text-slate-900">0 c</strong>
-                                        </div>
-                                        <div class="flex items-center justify-between text-sm text-slate-600">
-                                            <span>Доставка</span>
-                                            <strong id="checkoutDeliveryAmount" class="text-slate-900">0 c</strong>
-                                        </div>
-                                        <div class="border-t border-dashed border-slate-200 pt-3">
-                                            <div class="flex items-center justify-between text-base font-bold text-slate-900">
-                                                <span>Итого заказ</span>
-                                                <span id="checkoutGrandTotalAmount">0 c</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    <div id="checkoutError" class="hidden rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"></div>
-                    <div id="checkoutLoading" class="hidden rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
-                        Перенаправление к заказу...
-                    </div>
-
-                    <div class="rounded-[28px] bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-                        <div id="checkoutActionsRow" class="checkout-actions checkout-actions--step1">
-                            <button type="button" id="checkoutBackBtn" class="hidden checkout-action-btn checkout-action-btn--secondary">
-                                <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-                                <span>Назад</span>
-                            </button>
-                            <button type="button" id="checkoutNextBtn" class="checkout-action-btn checkout-action-btn--primary">
-                                <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-                                <span>Далее</span>
-                            </button>
-                            <button type="submit" id="checkoutSubmitBtn" class="hidden checkout-action-btn checkout-action-btn--dark">
-                                <i class="fa-solid fa-bag-shopping" aria-hidden="true"></i>
-                                <span>Оформить заказ</span>
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </section>
+            <div class="checkout-stepper__line"></div>
+            <div class="checkout-stepper__item" data-checkout-step-indicator="2">
+                <span class="checkout-stepper__number">2</span>
+                <span class="checkout-stepper__label">Оплата</span>
+            </div>
         </div>
+
+        <form id="checkoutForm" class="space-y-4" enctype="multipart/form-data">
+            <div data-checkout-step="1" class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+                <div class="mb-4 rounded-3xl bg-slate-50 px-4 py-4">
+                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Филиал</div>
+                    <div class="mt-2 text-base font-bold text-slate-900">{{ branch.name }}</div>
+                    <div class="text-sm text-slate-500">{{ branch.address }}</div>
+                </div>
+
+                <div id="checkoutAuthCard" class="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div id="checkoutAuthTitle" class="text-sm font-semibold text-slate-900">Нужна авторизация</div>
+                            <div id="checkoutAuthText" class="mt-1 text-xs text-slate-500">Подтвердите номер телефона перед оформлением заказа.</div>
+                        </div>
+                        <button type="button" id="checkoutOpenAuthBtn" class="rounded-full bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm">Войти</button>
+                    </div>
+                </div>
+
+                <label class="mt-4 block">
+                    <span class="mb-1 block text-sm font-medium text-slate-700">Адрес доставки</span>
+                    <input id="checkoutAddress" name="address" type="text" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400">
+                </label>
+
+                <label class="mt-4 block">
+                    <span class="mb-1 block text-sm font-medium text-slate-700">Комментарий к ресторану</span>
+                    <textarea id="checkoutComment" name="comment" rows="3" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400"></textarea>
+                </label>
+            </div>
+
+            <div data-checkout-step="2" class="hidden space-y-4">
+                <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+                    <div class="mb-2 text-sm font-medium text-slate-700">Тип оплаты</div>
+                    <div class="flex gap-2">
+                        <label class="payment-chip">
+                            <input type="radio" name="payment_type" value="online" checked>
+                            <span class="payment-chip__body">
+                                <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
+                                <span>Онлайн</span>
+                            </span>
+                        </label>
+                        <label class="payment-chip payment-chip--soon">
+                            <input type="radio" name="payment_type" value="cash">
+                            <span class="payment-chip__body">
+                                <i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i>
+                                <span>Наличные</span>
+                            </span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+                    <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-center">
+                        <div class="text-sm font-semibold text-slate-900">QR для оплаты</div>
+                        <div id="checkoutBranchQrEmpty" class="mt-4 text-sm text-slate-400">Для этого филиала QR пока не загружен.</div>
+                        <img id="checkoutBranchQrImage" src="{{ branch.qr_code_url or '' }}" alt="QR code" class="{% if branch.qr_code_url %}mx-auto mt-4 max-h-56 rounded-2xl border border-slate-200 bg-white p-3{% else %}mx-auto mt-4 hidden max-h-56 rounded-2xl border border-slate-200 bg-white p-3{% endif %}">
+                    </div>
+
+                    <div class="mt-4">
+                        <label for="checkoutReceipt" class="receipt-upload-card receipt-upload-card--inline">
+                            <input id="checkoutReceipt" name="receipt" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
+                            <div class="receipt-upload-card__inline">
+                                <div class="receipt-upload-card__icon receipt-upload-card__icon--compact">
+                                    <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-sm font-semibold text-slate-900">Загрузить чек</div>
+                                    <div id="checkoutReceiptMeta" class="mt-1 text-xs text-slate-500">PNG, JPG или WEBP</div>
+                                </div>
+                            </div>
+                            <div class="checkout-upload-progress">
+                                <div id="checkoutReceiptProgressBar" class="checkout-upload-progress__bar"></div>
+                            </div>
+                            <img id="checkoutReceiptPreview" src="" alt="Чек" class="mt-3 hidden h-32 w-full rounded-[20px] object-cover">
+                        </label>
+                        <div id="checkoutReceiptEmpty" class="hidden"></div>
+                    </div>
+                </section>
+
+                <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+                    <div class="space-y-3 text-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500">Сумма блюда</span>
+                            <strong id="checkoutSubtotalAmount" class="text-slate-900">0 c</strong>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500">Доставка</span>
+                            <strong id="checkoutDeliveryAmount" class="text-slate-900">0 c</strong>
+                        </div>
+                        <div class="flex items-center justify-between border-t border-slate-100 pt-3 text-base font-bold">
+                            <span>Итого заказ</span>
+                            <span id="checkoutGrandTotalAmount">0 c</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="checkoutError" class="hidden rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"></div>
+            <div id="checkoutLoading" class="hidden rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+                Перенаправление к заказу...
+            </div>
+
+            <div id="checkoutActionsRow" class="checkout-actions checkout-actions--step1">
+                <button type="button" id="checkoutBackBtn" class="hidden checkout-action-btn checkout-action-btn--secondary">
+                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                    <span>Назад</span>
+                </button>
+                <button type="button" id="checkoutNextBtn" class="checkout-action-btn checkout-action-btn--primary">
+                    <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                    <span>Далее</span>
+                </button>
+                <button type="submit" id="checkoutSubmitBtn" class="hidden checkout-action-btn checkout-action-btn--dark">
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                    <span>Оформить заказ</span>
+                </button>
+            </div>
+        </form>
     </main>
 </div>
 
@@ -246,6 +199,7 @@
 
 {% block scripts %}
 <script type="application/json" id="restaurantSlug">{{ restaurant.slug|tojson }}</script>
+<script type="application/json" id="restaurantBranchPublicId">{{ branch.public_id|tojson }}</script>
 <script type="application/json" id="checkoutPageData">{{ checkout_data|tojson }}</script>
 <script type="module" src="/static/js/entries/checkout-page.js"></script>
 {% endblock %}

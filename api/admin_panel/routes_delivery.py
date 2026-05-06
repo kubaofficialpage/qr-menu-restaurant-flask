@@ -1,3 +1,5 @@
+import uuid
+
 from flask import abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -102,6 +104,7 @@ def add_branch():
         with session_scope() as db_session:
             db_session.add(
                 RestaurantBranch(
+                    public_id=f"branch-{uuid.uuid4().hex}",
                     restaurant_id=restaurant["id"],
                     name=name,
                     address=address,

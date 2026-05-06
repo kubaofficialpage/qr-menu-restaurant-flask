@@ -1,7 +1,5 @@
 {% extends "client/base.html" %}
-
 {% import "client/partials/ui_macros.html" as client_ui %}
-{% import "client/partials/mobile_nav.html" as nav_ui %}
 
 {% block title %}Корзина{% endblock %}
 {% block meta_viewport %}<meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9, user-scalable=no">{% endblock %}
@@ -11,10 +9,10 @@
 <div class="cart-page min-h-screen pb-32">
     <header class="cart-page-top sticky top-0 z-20 bg-white/95 px-4 py-3 backdrop-blur">
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
-            <a href="{% if restaurant %}/{{ restaurant.slug }}{% else %}/{% endif %}" class="flex h-10 w-10 items-center justify-center rounded-xl border bg-white" aria-label="Назад">
+            <a href="/{{ restaurant.slug }}/{{ branch.public_id }}" class="flex h-10 w-10 items-center justify-center rounded-xl border bg-white" aria-label="Назад">
                 <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
             </a>
-            <h1 class="text-xl font-bold" data-i18n="cart_title">Корзина</h1>
+            <h1 class="text-xl font-bold">Корзина</h1>
             <div class="flex items-center gap-2">
                 {{ client_ui.lang_switcher("flex h-10 w-10 items-center justify-center rounded-xl border bg-white") }}
                 <button id="splitBillPageBtn" data-cart-tour="split" class="flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-gray-800" aria-label="Разделить счет">
@@ -29,9 +27,8 @@
 
     <main class="mx-auto max-w-7xl px-4">
         <section id="cartPageItems" data-cart-tour="items" class="cart-page-list mt-3 flex flex-col gap-3"></section>
-
         <section data-cart-tour="menu" class="mt-5">
-            <h2 class="mb-3 text-xl font-bold" data-i18n="similar">Похожее</h2>
+            <h2 class="mb-3 text-xl font-bold">Похожее</h2>
             <div id="cartPageMenu" class="grid grid-cols-3 gap-3 sm:gap-4 md:grid-cols-4 xl:grid-cols-6"></div>
         </section>
     </main>
@@ -39,11 +36,11 @@
     <footer class="cart-page-bottom fixed bottom-0 left-0 right-0 z-20 border-t bg-white px-4 py-3">
         <div class="mx-auto sm:flex sm:max-w-7xl sm:items-center sm:justify-between sm:gap-4">
             <div class="mb-3 flex items-center justify-between text-lg font-bold sm:mb-0 sm:min-w-[220px]">
-                <span data-i18n="total">Итого</span>
+                <span>Итого</span>
                 <span><span id="cartPageTotal">0</span> c</span>
             </div>
-            <a href="/{{ restaurant.slug }}/checkout" id="cartPageCheckout" data-cart-tour="checkout" class="block w-full rounded-xl bg-green-600 px-8 py-3 text-center font-semibold text-white sm:w-auto sm:min-w-[280px]">
-                <span data-i18n="checkout">Оформить заказ</span>
+            <a href="/{{ restaurant.slug }}/{{ branch.public_id }}/checkout" id="cartPageCheckout" data-cart-tour="checkout" class="block w-full rounded-xl bg-green-600 px-8 py-3 text-center font-semibold text-white sm:w-auto sm:min-w-[280px]">
+                <span>Оформить заказ</span>
             </a>
         </div>
     </footer>
@@ -55,37 +52,38 @@
     <h3 id="cartTourTitle" class="cart-tour-title"></h3>
     <p id="cartTourText" class="cart-tour-text"></p>
     <div class="cart-tour-actions">
-        <button id="cartTourSkipBtn" type="button" class="cart-tour-skip" data-i18n="cart_tour_skip">Пропустить</button>
-        <button id="cartTourNextBtn" type="button" class="cart-tour-next" data-i18n="cart_tour_next">Далее</button>
+        <button id="cartTourSkipBtn" type="button" class="cart-tour-skip">Пропустить</button>
+        <button id="cartTourNextBtn" type="button" class="cart-tour-next">Далее</button>
     </div>
 </div>
 
 <div id="clearCartPageModal" class="modal-overlay fixed inset-0 z-30 hidden flex items-center justify-center bg-black/40">
     <div class="modal-content mx-4 w-full max-w-sm rounded-xl bg-white p-6">
-        <h2 class="mb-4 text-lg font-bold" data-i18n="confirm_title">Подтверждение</h2>
-        <p class="mb-4" data-i18n="clear_cart_confirm_text">Вы уверены, что хотите очистить корзину?</p>
+        <h2 class="mb-4 text-lg font-bold">Подтверждение</h2>
+        <p class="mb-4">Вы уверены, что хотите очистить корзину?</p>
         <div class="flex gap-2">
-            <button id="confirmClearCartPageBtn" class="flex-1 rounded bg-red-500 py-2 text-white" data-i18n="yes">Да</button>
-            <button id="cancelClearCartPageBtn" class="flex-1 rounded bg-gray-300 py-2" data-i18n="cancel">Отмена</button>
+            <button id="confirmClearCartPageBtn" class="flex-1 rounded bg-red-500 py-2 text-white">Да</button>
+            <button id="cancelClearCartPageBtn" class="flex-1 rounded bg-gray-300 py-2">Отмена</button>
         </div>
     </div>
 </div>
 
 <div id="splitBillPageModal" class="modal-overlay fixed inset-0 z-30 hidden flex items-center justify-center bg-black/40">
     <div class="modal-content mx-4 w-full max-w-sm rounded-xl bg-white p-6">
-        <h2 class="mb-4 text-lg font-bold" data-i18n="split_bill_title">Разделить счет</h2>
-        <p class="mb-4"><span data-i18n="split_bill_total">Общая сумма</span>: <span id="splitPageTotal">0</span> c</p>
-        <input id="splitPageGuestsCount" type="number" min="1" placeholder="Количество гостей" data-i18n-placeholder="guests_count_placeholder" class="mb-4 w-full rounded border p-2">
-        <button id="calculateSplitPageBtn" class="mb-4 w-full rounded bg-blue-500 py-2 text-white" data-i18n="calculate">Рассчитать</button>
+        <h2 class="mb-4 text-lg font-bold">Разделить счет</h2>
+        <p class="mb-4">Общая сумма: <span id="splitPageTotal">0</span> c</p>
+        <input id="splitPageGuestsCount" type="number" min="1" placeholder="Количество гостей" class="mb-4 w-full rounded border p-2">
+        <button id="calculateSplitPageBtn" class="mb-4 w-full rounded bg-blue-500 py-2 text-white">Рассчитать</button>
         <div id="splitPageResult" class="hidden text-center text-lg font-bold">
-            <span data-i18n="per_person">На человека</span>: <span id="splitPagePerPerson">0</span> c
+            На человека: <span id="splitPagePerPerson">0</span> c
         </div>
-        <button id="closeSplitPageBtn" class="w-full rounded bg-gray-300 py-2" data-i18n="close">Закрыть</button>
+        <button id="closeSplitPageBtn" class="w-full rounded bg-gray-300 py-2">Закрыть</button>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script type="application/json" id="restaurantSlug">{% if restaurant %}{{ restaurant.slug|tojson }}{% else %}null{% endif %}</script>
+<script type="application/json" id="restaurantSlug">{{ restaurant.slug|tojson }}</script>
+<script type="application/json" id="restaurantBranchPublicId">{{ branch.public_id|tojson }}</script>
 <script type="module" src="/static/js/entries/cart-page.js"></script>
 {% endblock %}

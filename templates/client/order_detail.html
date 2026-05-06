@@ -8,7 +8,7 @@
 <div class="min-h-screen pb-28">
     <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
         <div class="mx-auto flex max-w-5xl items-center justify-between gap-3">
-            <a href="/{{ restaurant.slug }}/orders" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white">
+            <a href="/{{ restaurant.slug }}/{{ branch.public_id }}/orders" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white">
                 <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
             </a>
             <div class="text-center">
@@ -40,15 +40,6 @@
                     <span>{{ "Онлайн" if order.payment_type == "online" else "Наличные" }}</span>
                 </div>
             </div>
-
-            {% if order.yandex_delivery_url %}
-            <div class="mt-4">
-                <a href="{{ order.yandex_delivery_url }}" target="_blank" class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                    <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
-                    Отследить заказ
-                </a>
-            </div>
-            {% endif %}
 
             <div class="mt-4 rounded-3xl bg-slate-50 px-4 py-4">
                 <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Адрес доставки</div>
@@ -106,7 +97,7 @@
 
         {% if order.can_customer_complete %}
         <section class="rounded-[28px] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-            <form action="/{{ restaurant.slug }}/orders/{{ order.id }}/complete" method="post">
+            <form action="/{{ restaurant.slug }}/{{ branch.public_id }}/orders/{{ order.id }}/complete" method="post">
                 <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white">
                     <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
                     <span>Получил(-а) заказ</span>
@@ -134,7 +125,7 @@
 </div>
 {% endif %}
 
-{{ nav_ui.mobile_nav(restaurant, "orders") }}
+{{ nav_ui.mobile_nav(restaurant, "orders", branch) }}
 {% endblock %}
 
 {% block scripts %}
@@ -146,7 +137,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const openBtn = document.getElementById("receiptModalOpenBtn");
     const closeBtn = document.getElementById("receiptModalCloseBtn");
     if (!modal || !openBtn || !closeBtn) return;
-
     const closeModal = () => modal.classList.add("hidden");
     openBtn.addEventListener("click", () => modal.classList.remove("hidden"));
     closeBtn.addEventListener("click", closeModal);
@@ -160,13 +150,8 @@ document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener("DOMContentLoaded", () => {
     const configElement = document.getElementById("clientOrderSocketConfig");
     if (!configElement || typeof io === "undefined") return;
-
     let config = {};
-    try {
-        config = JSON.parse(configElement.textContent || "{}");
-    } catch {
-        config = {};
-    }
+    try { config = JSON.parse(configElement.textContent || "{}"); } catch { config = {}; }
 
     const badge = document.getElementById("customerPaymentStatusBadge");
     const text = document.getElementById("customerPaymentStatusText");
@@ -182,10 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     socket.on("customer_order_updated", payload => {
         if (!payload || Number(payload.orderId || 0) !== Number(config.orderId || 0)) return;
-
-        if (text && payload.paymentStatusLabel) {
-            text.textContent = payload.paymentStatusLabel;
-        }
+        if (text && payload.paymentStatusLabel) text.textContent = payload.paymentStatusLabel;
         if (badge) {
             badge.classList.remove("bg-emerald-50", "text-emerald-700", "bg-amber-50", "text-amber-700");
             if (payload.paymentStatus === "paid") {

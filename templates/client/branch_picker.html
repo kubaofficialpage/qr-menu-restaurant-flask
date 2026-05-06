@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ restaurant.name }} - Выбор филиала</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>body { font-family: Montserrat, system-ui, sans-serif; }</style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900">
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-950/55"></div>
+        <section class="relative z-10 w-full max-w-lg rounded-[32px] bg-white p-6 shadow-2xl">
+            <div class="text-center">
+                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Delivery</div>
+                <h1 class="mt-2 text-2xl font-extrabold text-slate-900">{{ restaurant.name }}</h1>
+                <p class="mt-2 text-sm text-slate-500">Выберите филиал, чтобы открыть меню и оформить заказ.</p>
+            </div>
+
+            <div class="mt-6 space-y-3">
+                {% for branch in branches %}
+                <a href="/{{ restaurant.slug }}/{{ branch.public_id }}" class="block rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 transition hover:border-emerald-300 hover:bg-emerald-50">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-base font-bold text-slate-900">{{ branch.name }}</div>
+                            <div class="mt-1 text-sm text-slate-500">{{ branch.address }}</div>
+                        </div>
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
+                            <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                        </span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</body>
+</html>
